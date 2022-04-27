@@ -83,6 +83,7 @@ typedef struct {
 
 /*** error reporting ***/
 
+__attribute__((__format__(__printf__, 4, 0)))
 static void error_set(json_error_t *error, const lex_t *lex,
                       enum json_error_code code,
                       const char *msg, ...)

@@ -44,6 +44,7 @@ void jsonp_error_set(json_error_t *error, int line, int column,
     va_end(ap);
 }
 
+__attribute__((__format__(__printf__, 6, 0)))
 void jsonp_error_vset(json_error_t *error, int line, int column,
                       size_t position, enum json_error_code code,
                       const char *msg, va_list ap)

@@ -124,7 +124,7 @@
  *
  * Integer attributes can be queried through the XNVCTRLQueryAttribute() and
  * XNVCTRLQueryTargetAttribute() function calls.
- * 
+ *
  * Integer attributes can be set through the XNVCTRLSetAttribute() and
  * XNVCTRLSetTargetAttribute() function calls.
  *
@@ -207,7 +207,7 @@
  */
 
 #define NV_CTRL_TOTAL_GPU_MEMORY                                6  /* R--G */
-#define NV_CTRL_VIDEO_RAM                NV_CTRL_TOTAL_GPU_MEMORY 
+#define NV_CTRL_VIDEO_RAM                NV_CTRL_TOTAL_GPU_MEMORY
 
 
 /*
@@ -229,6 +229,7 @@
 #define NV_CTRL_OPERATING_SYSTEM_LINUX                          0
 #define NV_CTRL_OPERATING_SYSTEM_FREEBSD                        1
 #define NV_CTRL_OPERATING_SYSTEM_SUNOS                          2
+#define NV_CTRL_OPERATING_SYSTEM_GENERIC                        3
 
 
 /*
@@ -256,7 +257,7 @@
 /*
  * NV_CTRL_FSAA_MODE - the FSAA setting for OpenGL clients; possible
  * FSAA modes:
- * 
+ *
  * NV_CTRL_FSAA_MODE_2x     "2x Bilinear Multisampling"
  * NV_CTRL_FSAA_MODE_2x_5t  "2x Quincunx Multisampling"
  * NV_CTRL_FSAA_MODE_15x15  "1.5 x 1.5 Supersampling"
@@ -431,7 +432,7 @@
 
 /*
  * NV_CTRL_FRAMELOCK_SYNC_DELAY - delay between the frame lock pulse
- * and the GPU sync.  This value must be multiplied by 
+ * and the GPU sync.  This value must be multiplied by
  * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION to determine the sync delay in
  * nanoseconds.
  *
@@ -444,7 +445,7 @@
  *             The Sync Delay _MAX and _FACTOR are different for different
  *             Quadro Sync products and so, to be correct, the valid values for
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY must be queried to get the range
- *             of acceptable sync delay values, and 
+ *             of acceptable sync delay values, and
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION must be queried to
  *             obtain the correct factor.
  */
@@ -851,13 +852,13 @@
 /*
  * NV_CTRL_PBUFFER_SCANOUT_SUPPORTED - returns whether this X screen
  * supports scanout of FP pbuffers;
- * 
+ *
  * if this screen does not support PBUFFER_SCANOUT, then all other
  * PBUFFER_SCANOUT attributes are unavailable.
  *
  * PBUFFER_SCANOUT is supported if and only if:
- * - Twinview is configured with clone mode.  The secondary screen is used to 
- *   scanout the pbuffer.  
+ * - Twinview is configured with clone mode.  The secondary screen is used to
+ *   scanout the pbuffer.
  * - The desktop is running in with 16 bits per pixel.
  */
 #define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* not supported */
@@ -883,11 +884,11 @@
  * - specify NV_CTRL_GVO_SYNC_MODE (one of FREE_RUNNING, GENLOCK, or
  * FRAMELOCK); if you specify GENLOCK or FRAMELOCK, you should also
  * specify NV_CTRL_GVO_SYNC_SOURCE.
- * 
+ *
  * - Use NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED and
  * NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
  * present.
- * 
+ *
  * (If no analog sync is detected but it is known that a valid
  * bi-level or tri-level sync is connected set
  * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
@@ -1026,11 +1027,11 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_720P_50_00_SMPTE296           16
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_SMPTE274          17
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_SMPTE274          18
-#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_30_00_SMPTE296           19 
-#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_29_97_SMPTE296           20  
-#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_25_00_SMPTE296           21 
-#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_24_00_SMPTE296           22 
-#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296           23  
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_30_00_SMPTE296           19
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_29_97_SMPTE296           20
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_25_00_SMPTE296           21
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_24_00_SMPTE296           22
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296           23
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274        24
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274        25
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274        26
@@ -1311,7 +1312,7 @@
  * the video format specified in the display_mask field; eg:
  *
  * XNVCTRLQueryAttribute (dpy,
- *                        screen, 
+ *                        screen,
  *                        NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
  *                        NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH,
  *                        &value);
@@ -2329,7 +2330,7 @@
 
 #define NV_CTRL_GVI_NUM_JACKS                                   307 /* R--I */
 
-/* 
+/*
  * NV_CTRL_GVI_MAX_LINKS_PER_STREAM - Returns the maximum supported number of
  * links that can be tied to one stream.
  */
@@ -2483,28 +2484,28 @@
 
 #define NV_CTRL_THERMAL_COOLER_LEVEL                            320 /* RW-C */
 
-/* NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT - Sets default values of  
+/* NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT - Sets default values of
  * cooler.
  */
 
 #define NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT                321 /* -W-C */
 
-/* 
- * NV_CTRL_THERMAL_COOLER_CONTROL_TYPE - 
+/*
+ * NV_CTRL_THERMAL_COOLER_CONTROL_TYPE -
  * Returns a cooler's control signal characteristics.
  * The possible types are restricted, Variable and Toggle.
  */
 
 #define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE                     322 /* R--C */
 #define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE                  0
-#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE                1 
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE                1
 #define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE              2
 
-/* 
+/*
  * NV_CTRL_THERMAL_COOLER_TARGET - Returns objects that cooler cools.
  * Targets may be GPU, Memory, Power Supply or All of these.
  * GPU_RELATED = GPU | MEMORY | POWER_SUPPLY
- * 
+ *
  */
 
 #define NV_CTRL_THERMAL_COOLER_TARGET                           323 /* R--C */
@@ -2515,7 +2516,7 @@
 #define NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED   \
         (NV_CTRL_THERMAL_COOLER_TARGET_GPU |        \
          NV_CTRL_THERMAL_COOLER_TARGET_MEMORY |     \
-         NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY) 
+         NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY)
 
 /*
  * NV_CTRL_GPU_ECC_SUPPORTED - Reports whether ECC is supported by the
@@ -2799,13 +2800,13 @@
 #define NV_CTRL_CURRENT_DITHERING_MODE_STATIC_2X2                 2
 #define NV_CTRL_CURRENT_DITHERING_MODE_TEMPORAL                   3
 
-/* 
+/*
  * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
  * reading.
  */
 #define NV_CTRL_THERMAL_SENSOR_READING                          355 /* R--S */
 
-/* 
+/*
  * NV_CTRL_THERMAL_SENSOR_PROVIDER - Returns the hardware device that
  * provides the thermal sensor.
  */
@@ -2826,7 +2827,7 @@
 #define NV_CTRL_THERMAL_SENSOR_PROVIDER_OS                       13
 #define NV_CTRL_THERMAL_SENSOR_PROVIDER_UNKNOWN          0xFFFFFFFF
 
-/* 
+/*
  * NV_CTRL_THERMAL_SENSOR_TARGET - Returns what hardware component
  * the thermal sensor is measuring.
  */
@@ -3049,7 +3050,7 @@
 
 /*
  * NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT - This attribute is sent
- * as an event when glasses get paired in response to pair command 
+ * as an event when glasses get paired in response to pair command
  * from any of the clients.
  */
 #define NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT                382 /* ---T */
@@ -3061,13 +3062,13 @@
  */
 #define NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT              383 /* ---T */
 
-/* 
+/*
  * NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH - returns the current
  * PCIe link width, in number of lanes.
  */
 #define NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH                     384 /* R--GI */
 
-/* 
+/*
  * NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED - returns the current
  * PCIe link speed, in megatransfers per second (GT/s).
  */
@@ -3103,8 +3104,8 @@
 #define NV_CTRL_DISPLAY_ENABLED_TRUE                              1
 #define NV_CTRL_DISPLAY_ENABLED_FALSE                             0
 
-/* 
- * NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE: this is the rate 
+/*
+ * NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE: this is the rate
  * of an incoming house sync signal to the frame lock board, in milliHz.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
@@ -3114,13 +3115,13 @@
 #define NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE              389 /* R--F */
 
 /*
- * NV_CTRL_FXAA - enables FXAA. A pixel shader based anti-  
+ * NV_CTRL_FXAA - enables FXAA. A pixel shader based anti-
  * aliasing method.
  */
 #define NV_CTRL_FXAA                                            390 /* RW-X */
 #define NV_CTRL_FXAA_DISABLE                                    0
 #define NV_CTRL_FXAA_ENABLE                                     1
-  
+
 /*
  * NV_CTRL_DISPLAY_RANDR_OUTPUT_ID - the RandR Output ID (type RROutput)
  * that corresponds to the specified Display Device target.  If a new
@@ -3155,7 +3156,7 @@
 #define NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY                      393 /* R--G */
 
 /*
- * NV_CTRL_USED_DEDICATED_GPU_MEMORY- Returns the amount of video memory 
+ * NV_CTRL_USED_DEDICATED_GPU_MEMORY- Returns the amount of video memory
  * currently used on the graphics card in MB.
  */
 #define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
@@ -3243,13 +3244,13 @@
 /*
  * NV_CTRL_GPU_LOGO_BRIGHTNESS - Controls brightness
  * of the logo on the GPU, if any.  The value is variable from 0% - 100%.
- */ 
+ */
 #define NV_CTRL_GPU_LOGO_BRIGHTNESS                             403 /* RW-G */
 
 /*
  * NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS - Controls brightness of the logo
  * on the SLI bridge, if any.  The value is variable from 0% - 100%.
- */  
+ */
 #define NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS                         404 /* RW-G */
 
 /*
@@ -3646,7 +3647,7 @@
  *
  * String attributes can be queryied through the XNVCTRLQueryStringAttribute()
  * and XNVCTRLQueryTargetStringAttribute() function calls.
- * 
+ *
  * String attributes can be set through the XNVCTRLSetStringAttribute()
  * function call.  (There are currently no string attributes that can be
  * set on non-X Screen targets.)
@@ -3722,7 +3723,7 @@
 #define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8 /* renamed */
 
 
-/* 
+/*
  * NV_CTRL_STRING_CURRENT_MODELINE - Return the ModeLine currently
  * being used by the specified display device.
  *
@@ -3738,7 +3739,7 @@
 #define NV_CTRL_STRING_CURRENT_MODELINE                         9   /* R-DG */
 
 
-/* 
+/*
  * NV_CTRL_STRING_ADD_MODELINE - Adds a ModeLine to the specified
  * display device.  The ModeLine is not added if validation fails.
  *
@@ -3766,7 +3767,7 @@
 #define NV_CTRL_STRING_DELETE_MODELINE                         11   /* -WDG */
 
 
-/* 
+/*
  * NV_CTRL_STRING_CURRENT_METAMODE - Returns the metamode currently
  * being used by the specified X screen.  The MetaMode string has the
  * same syntax as the MetaMode X configuration option, as documented
@@ -3784,7 +3785,7 @@
 
 
 
-/* 
+/*
  * NV_CTRL_STRING_ADD_METAMODE - Adds a MetaMode to the specified
  * X Screen.
  *
@@ -3862,7 +3863,7 @@
 #define NV_CTRL_STRING_VCSC_HARDWARE_REVISION                  22
 
 
-/* 
+/*
  * NV_CTRL_STRING_MOVE_METAMODE - Moves a MetaMode to the specified
  * index location.  The MetaMode must already exist in the X Screen's
  * list of MetaModes (as returned by the NV_CTRL_BINARY_DATA_METAMODES
@@ -4081,7 +4082,7 @@
  * format specified in the display_mask field; eg:
  *
  * XNVCTRLQueryStringAttribute(dpy,
- *                             screen, 
+ *                             screen,
  *                             NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296,
  *                             NV_CTRL_GVIO_VIDEO_FORMAT_NAME,
  *                             &name);
@@ -4356,7 +4357,7 @@
  *
  * Binary data attributes can be queryied through the XNVCTRLQueryBinaryData()
  * and XNVCTRLQueryTargetBinaryData() function calls.
- * 
+ *
  * There are currently no binary data attributes that can be set.
  *
  * Unless otherwise noted, all Binary data attributes can be queried
@@ -4377,7 +4378,7 @@
 #define NV_CTRL_BINARY_DATA_EDID                                0  /* R-DG */
 
 
-/* 
+/*
  * NV_CTRL_BINARY_DATA_MODELINES - Returns a display device's supported
  * ModeLines.  ModeLines are returned in a buffer, separated by a single
  * '\0' and terminated by two consecutive '\0' s like so:
@@ -4398,7 +4399,7 @@
  *            "vesa"       - this is a VESA standard ModeLine
  *            "edid"       - the ModeLine was in the display device's EDID
  *            "nv-control" - the ModeLine was specified via NV-CONTROL
- *            
+ *
  *   "xconfig-name"        - for ModeLines that were specified in the X config
  *                           file, this is the name the X config file
  *                           gave for the ModeLine.
@@ -4421,7 +4422,7 @@
 #define NV_CTRL_BINARY_DATA_MODELINES                           1   /* R-DG */
 
 
-/* 
+/*
  * NV_CTRL_BINARY_DATA_METAMODES - Returns an X Screen's supported
  * MetaModes.  MetaModes are returned in a buffer separated by a
  * single '\0' and terminated by two consecutive '\0' s like so:
@@ -4912,7 +4913,7 @@
  * An example input string might look like:
  *
  *   "stream=0, link0=jack0, link1=jack1; stream=1, link0=jack2.1"
- * 
+ *
  *   This example specifies two streams, stream 0 and stream 1.  Stream 0
  *   is defined to capture link0 data from the first channel (channel 0) of
  *   BNC jack 0 and link1 data from the first channel of BNC jack 1.  The
@@ -4925,7 +4926,7 @@
  *
  * Applications should query the following attributes to determine
  * possible combinations:
- * 
+ *
  *   NV_CTRL_GVI_MAX_STREAMS
  *   NV_CTRL_GVI_MAX_LINKS_PER_STREAM
  *   NV_CTRL_GVI_NUM_JACKS

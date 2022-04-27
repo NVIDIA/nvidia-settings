@@ -65,10 +65,10 @@ GType ctk_server_get_type(void)
  * Copyright Information for xdpyinfo:
  *
  ***********************************************************************
- * 
+ *
  * xdpyinfo - print information about X display connection
  *
- * 
+ *
 Copyright 1988, 1998  The Open Group
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -175,7 +175,7 @@ static gchar * get_server_vendor_version(CtrlTarget *ctrl_target)
                               (vendrel /   100000) % 100,
                               (vendrel /     1000) % 100);
         if (vendrel % 1000) {
-            version = g_strdup_printf("%s.%d", tmp, vendrel % 1000); 
+            version = g_strdup_printf("%s.%d", tmp, vendrel % 1000);
         } else {
             version = g_strdup(tmp);
         }
@@ -217,7 +217,7 @@ static gchar * get_server_vendor_version(CtrlTarget *ctrl_target)
     }
 
     /* Add the vendor release number */
-    
+
     if (version) {
         tmp = g_strdup_printf("%s (%d)", version, vendrel);
     } else {
@@ -263,7 +263,7 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     gchar *num_screens = NULL;
 
     ReturnStatus ret;
-    int tmp, os_val;
+    int tmp, os_val = NV_CTRL_OPERATING_SYSTEM_GENERIC;
     int xinerama_enabled;
     int row;
 
@@ -464,12 +464,12 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
 
 
     /* print special trademark text for FreeBSD */
-    
+
     if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
 
         hseparator = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(vbox), hseparator, FALSE, FALSE, 0);
-        
+
         label = gtk_label_new(NULL);
 
         gtk_label_set_markup(GTK_LABEL(label),
@@ -486,13 +486,13 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
                              "Foundation."
                              "\n"
                              "</span>");
-        
+
         gtk_label_set_selectable(GTK_LABEL(label), TRUE);
         gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-        
+
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        
+
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
     }
 
@@ -523,9 +523,9 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-    
+
     b = gtk_text_buffer_new(table);
-    
+
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "System Information Help");
@@ -536,7 +536,7 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
                   "'Linux', 'FreeBSD', and 'SunOS'.  This also specifies the "
                   "platform on which the operating system is running, such "
                   "as x86, x86_64, or ia64.");
-    
+
     ctk_help_heading(b, &i, "NVIDIA Driver Version");
     ctk_help_para(b, &i, "This is the version of the NVIDIA Accelerated "
                   "Graphics Driver currently in use.");

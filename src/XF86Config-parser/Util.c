@@ -7,12 +7,12 @@
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses>.
  *
@@ -31,14 +31,14 @@
 void *xconfigAlloc(size_t size)
 {
     void *m = malloc(size);
-    
+
     if (!m) {
         fprintf(stderr, "memory allocation failure (%s)! \n", strerror(errno));
         exit(1);
     }
     memset((char *) m, 0, size);
     return m;
-    
+
 } /* xconfigAlloc() */
 
 
@@ -55,14 +55,14 @@ char *xconfigStrdup(const char *s)
     if (!s) return NULL;
 
     m = strdup(s);
-    
+
     if (!m) {
         fprintf(stderr, "memory allocation failure during strdup (%s)! \n",
                 strerror(errno));
         exit(1);
     }
     return m;
-    
+
 } /* xconfigStrdup() */
 
 
@@ -77,7 +77,7 @@ char *xconfigStrcat(const char *str, ...)
     va_list args;
     char *s;
     char *concat;
-  
+
     l = 1 + strlen(str);
     va_start(args, str);
     s = va_arg(args, char *);
@@ -87,10 +87,10 @@ char *xconfigStrcat(const char *str, ...)
         s = va_arg(args, char *);
     }
     va_end(args);
-  
+
     concat = xconfigAlloc(l);
     concat[0] = 0;
-  
+
     strcat(concat, str);
     va_start(args, str);
     s = va_arg(args, char *);
@@ -99,7 +99,7 @@ char *xconfigStrcat(const char *str, ...)
         s = va_arg(args, char *);
     }
     va_end(args);
-  
+
     return concat;
 
 } /* xconfigStrcat() */
@@ -115,6 +115,7 @@ extern int configLineNo;
 extern char *configSection;
 extern char *configPath;
 
+__attribute__((__format__(__printf__, 2, 0)))
 void xconfigErrorMsg(MsgType t, char *fmt, ...)
 {
     va_list ap;
@@ -123,7 +124,7 @@ void xconfigErrorMsg(MsgType t, char *fmt, ...)
     char scratch[64];
 
     b = xconfigAlloc(current_len);
-    
+
     while (1) {
         va_start(ap, fmt);
         len = vsnprintf(b, current_len, fmt, ap);
@@ -162,18 +163,18 @@ void xconfigErrorMsg(MsgType t, char *fmt, ...)
     case DebugMsg: break;
     case UnknownMsg: break;
     }
-    
+
     if (pre) {
         msg = xconfigStrcat(pre, b, NULL);
     } else {
         msg = strdup(b);
     }
-    
+
     /* call back into the host to print the message */
 
     xconfigPrint(t, msg);
 
-    
+
     free(b);
     free(msg);
     if (pre) free(pre);

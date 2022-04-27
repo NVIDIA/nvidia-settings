@@ -25,7 +25,10 @@
  * Make sure that XTHREADS is defined, so that the
  * LockDisplay/UnlockDisplay macros are expanded properly and the
  * libXNVCtrl library properly protects the Display connection.
+ * Include XlibConf.h first so as to not redefine XTHREADS.
  */
+
+#include <X11/XlibConf.h>
 
 #if !defined(XTHREADS)
 #define XTHREADS
@@ -327,7 +330,7 @@ Bool XNVCTRLSetTargetAttributeAndGetStatus (
     }
     UnlockDisplay (dpy);
     SyncHandle ();
-    
+
     success = rep.flags;
     return success;
 }
@@ -570,7 +573,7 @@ static Bool XNVCTRLQueryValidTargetAttributeValues32 (
     int target_type,
     int target_id,
     unsigned int display_mask,
-    unsigned int attribute,                                 
+    unsigned int attribute,
     NVCTRLAttributeValidValuesRec *values
 ){
     xnvCtrlQueryValidAttributeValuesReply rep;
@@ -1183,7 +1186,7 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
     XNVCtrlBinaryEventTarget *reTargetBinary;
 
     XNVCTRLCheckExtension (dpy, info, False);
-    
+
     switch ((wire->u.u.type & 0x7F) - info->codes->first_event) {
     case ATTRIBUTE_CHANGED_EVENT:
         re = (XNVCtrlEvent *) host;

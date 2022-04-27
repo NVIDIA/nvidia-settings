@@ -2253,7 +2253,7 @@ static void edit_profile_dialog_settings_new_row(GtkTreeView *tree_view,
                         get_default_json_from_type(expected_type));
 
     gtk_list_store_append(GTK_LIST_STORE(tree_model), &iter);
-    gtk_list_store_set(GTK_LIST_STORE(tree_model), &iter, 
+    gtk_list_store_set(GTK_LIST_STORE(tree_model), &iter,
                        SETTING_LIST_STORE_COL_SETTING, setting, -1);
 
     *path = gtk_tree_model_get_path(tree_model, &iter);
@@ -2678,6 +2678,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
     *num_dialog_items = ARRAY_LEN(dialog_items);
 }
 
+__attribute__((__format__(printf, 2, 0)))
 static void edit_profile_dialog_statusbar_message(EditProfileDialog *dialog,
                                                   const char *fmt, ...)
 {

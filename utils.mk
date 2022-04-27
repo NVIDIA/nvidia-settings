@@ -56,6 +56,8 @@ HOST_BIN_LDFLAGS      ?=
 # always disable warnings that will break the build
 CC_ONLY_CFLAGS        += -Wno-format-zero-length
 CFLAGS                += -Wno-unused-parameter
+CFLAGS                += -Wno-deprecated-declarations
+CFLAGS                += -Wno-unknown-warning-option
 HOST_CC_ONLY_CFLAGS   += -Wno-format-zero-length
 HOST_CFLAGS           += -Wno-unused-parameter
 
@@ -127,6 +129,7 @@ endif
 
 ifndef TARGET_ARCH
   TARGET_ARCH         := $(shell uname -m)
+  TARGET_ARCH         := $(subst amd64,x86_64,$(TARGET_ARCH))
   TARGET_ARCH         := $(subst i386,x86,$(TARGET_ARCH))
   TARGET_ARCH         := $(subst i486,x86,$(TARGET_ARCH))
   TARGET_ARCH         := $(subst i586,x86,$(TARGET_ARCH))
@@ -157,6 +160,18 @@ ifeq ($(TARGET_OS),Linux)
   LIBDL_LIBS = -ldl
 else
   LIBDL_LIBS =
+endif
+
+LLD_EMULATION =
+
+ifneq ($(shell $(LD) -v | grep LLD),)
+  ifeq ($(TARGET_ARCH),x86)
+    LLD_EMULATION := -m elf_i386
+  endif
+
+  ifeq ($(TARGET_ARCH),x86_64)
+    LLD_EMULATION := -m elf_x86_64
+  endif
 endif
 
 # This variable controls which floating-point ABI is targeted.  For ARM, it
@@ -475,7 +490,7 @@ endef
 
 # This is a function that will generate rules to build
 # files with separate debug information, if so requested.
-# 
+#
 # It takes one parameter: (1) Name of unstripped binary
 #
 # When used, the target for linking should be named (1).unstripped
@@ -547,7 +562,7 @@ define READ_ONLY_OBJECT_FROM_FILE_RULE
   $$(OUTPUTDIR)/$$(notdir $(1)).o: $(1)
 	$(at_if_quiet)$$(MKDIR) $$(OUTPUTDIR)
 	$(at_if_quiet)cd $$(dir $(1)); \
-	$$(call quiet_cmd_no_at,LD) -r -z noexecstack --format=binary \
+	$$(call quiet_cmd_no_at,LD) $(LLD_EMULATION) -r -z noexecstack --format=binary \
 	    $$(notdir $(1)) -o $$(OUTPUTDIR_ABSOLUTE)/$$(notdir $$@)
 	$$(call quiet_cmd,OBJCOPY) \
 	    --rename-section .data=.rodata,contents,alloc,load,data,readonly \

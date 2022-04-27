@@ -416,7 +416,7 @@ static void draw(CtkGauge *ctk_gauge)
         y += 2 * 2;
     }
 
-    for (i = i; i > 0; i--) {
+    for (; i > 0; i--) {
 #ifdef CTK_GTK3
         set_foreground_color(ctk_gauge->c_context, i);
         cairo_rectangle(ctk_gauge->c_context, x1, y, width, 2);
