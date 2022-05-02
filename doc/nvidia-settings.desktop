@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Encoding=UTF-8
-Name=NVIDIA X Server Settings
-Comment=Configure NVIDIA X Server Settings
+Name=NVIDIA Settings
+Comment=Configure NVIDIA Settings
 Exec=__UTILS_PATH__/nvidia-settings
 Icon=__PIXMAP_PATH__/nvidia-settings.png
 Categories=__NVIDIA_SETTINGS_DESKTOP_CATEGORIES__
