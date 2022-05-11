@@ -19,6 +19,7 @@
 
 #include <stdlib.h> /* malloc */
 #include <stdio.h> /* snprintf */
+#include <string.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -30,6 +31,7 @@
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
+#include "wayland-connector.h"
 
 
 GType ctk_server_get_type(void)
@@ -231,6 +233,51 @@ static gchar * get_server_vendor_version(CtrlTarget *ctrl_target)
 
 
 
+static int add_wayland_mode_to_table(GtkWidget *table,
+                                     wayland_output_info *output,
+                                     int row)
+{
+    const char *display_name = NULL;
+    char *w_geo_str;
+    char *w_mode_str;
+
+    /*
+     * Return early if this is not the current mode.
+     */
+    if (!output->is_current_mode) {
+        return row;
+    }
+
+    row++; /* Extra Space */
+
+    display_name = output->model;
+    if (display_name == NULL || strcmp(display_name, "none") == 0) {
+        display_name = output->make;
+    }
+    if (display_name == NULL) {
+        display_name = "Unknown";
+    }
+
+    w_geo_str = nvasprintf("Position x: %d, y: %d, Transform: %s",
+                           output->x, output->y, output->transform_name);
+
+    w_mode_str = nvasprintf("%dx%d @%.2f",
+                            output->mode_width, output->mode_height,
+                            output->mode_refresh / 1000.0);
+    add_table_row(table, row++,
+                  0, 0.5, "Wayland Display:",       0, 0.5, display_name);
+    add_table_row(table, row++,
+                  0, 0.5, "    Geometry:",  0, 0.5, w_geo_str);
+    add_table_row(table, row++,
+                  0, 0.5, "    Current Mode:",  0, 0.5, w_mode_str);
+
+    free(w_geo_str);
+    free(w_mode_str);
+
+    return row; /* Next available row */
+}
+
+
 /*
  * CTK Server widget creation
  *
@@ -368,6 +415,11 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
 
     object = g_object_new(CTK_TYPE_SERVER, NULL);
     ctk_object = CTK_SERVER(object);
+    ctk_object->ctk_config = ctk_config;
+
+    ctk_object->os_available = (os != NULL);
+    ctk_object->nvml_available = (nvml_version != NULL);
+    ctk_object->x_available = (server_version != NULL);
 
     /* set container properties of the object */
 
@@ -463,6 +515,55 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     }
 
 
+    ctk_object->wayland_available = FALSE;
+    if (ctk_config->pCtrlSystem->wayland_output)
+    {
+        int output_count = 0;
+        char *output_count_str;
+        int row = 0;
+        wayland_output_info *output;
+
+        output = (wayland_output_info *) ctk_config->pCtrlSystem->wayland_output;
+        while (output != NULL) {
+            output = output->next;
+            output_count++;
+        }
+
+        if (output_count > 0) {
+
+            hbox = gtk_hbox_new(FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+            label = gtk_label_new("Wayland Information");
+            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+            hseparator = gtk_hseparator_new();
+            gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+
+            table = gtk_table_new(9, 2, FALSE);
+            gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+            gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+            gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+            gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+
+
+            output_count_str = nvasprintf("%d", output_count);
+            add_table_row(table, row++,
+                          0, 0,   "Outputs:", 0, 0, output_count_str);
+            free(output_count_str);
+
+            output =
+                (wayland_output_info *) ctk_config->pCtrlSystem->wayland_output;
+            while (output != NULL) {
+                row = add_wayland_mode_to_table(table, output, row);
+                output = output->next;
+            }
+
+            ctk_object->wayland_available = TRUE;
+        }
+    }
+
+
     /* print special trademark text for FreeBSD */
     
     if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
@@ -530,39 +631,71 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
 
     ctk_help_title(b, &i, "System Information Help");
 
-    ctk_help_heading(b, &i, "Operating System");
-    ctk_help_para(b, &i, "This is the operating system on which the NVIDIA "
-                  "X driver is running; possible values are "
-                  "'Linux', 'FreeBSD', and 'SunOS'.  This also specifies the "
-                  "platform on which the operating system is running, such "
-                  "as x86, x86_64, or ia64.");
-    
+    if (ctk_object->os_available) {
+        ctk_help_heading(b, &i, "Operating System");
+        ctk_help_para(b, &i, "This is the operating system on which the NVIDIA "
+                      "X driver is running; possible values are "
+                      "'Linux', 'FreeBSD', and 'SunOS'.  This also specifies the "
+                      "platform on which the operating system is running, such "
+                      "as x86, x86_64, or ia64.");
+    }
+
     ctk_help_heading(b, &i, "NVIDIA Driver Version");
     ctk_help_para(b, &i, "This is the version of the NVIDIA Accelerated "
                   "Graphics Driver currently in use.");
 
-    ctk_help_heading(b, &i, "Display Name");
-    ctk_help_para(b, &i, "This is the display connection string used to "
-                  "communicate with the X Server.");
+    if (ctk_object->nvml_available) {
+        ctk_help_heading(b, &i, "NVML Version");
+        ctk_help_para(b, &i, "This is the version of the NVIDIA NVML library"
+                      "currently in use.");
+    }
 
-    ctk_help_heading(b, &i, "Server Version");
-    ctk_help_para(b, &i, "This is the version number of the X Server.");
+    if (ctk_object->x_available) {
 
-    ctk_help_heading(b, &i, "Server Vendor String");
-    ctk_help_para(b, &i, "This is the X Server vendor information string.");
+        ctk_help_heading(b, &i, "Display Name");
+        ctk_help_para(b, &i, "This is the display connection string used to "
+                      "communicate with the X Server.");
 
-    ctk_help_heading(b, &i, "Server Vendor Version");
-    ctk_help_para(b, &i, "This is the version number of the X Server "
-                  "vendor.");
+        ctk_help_heading(b, &i, "Server Version");
+        ctk_help_para(b, &i, "This is the version number of the X Server.");
 
-    ctk_help_heading(b, &i, "NV-CONTROL Version");
-    ctk_help_para(b, &i, "This is the version number of the NV-CONTROL X extension, "
-                  "used by nvidia-settings to communicate with the "
-                  "NVIDIA X driver.");
+        ctk_help_heading(b, &i, "Server Vendor String");
+        ctk_help_para(b, &i, "This is the X Server vendor information string.");
 
-    ctk_help_heading(b, &i, "Screens");
-    ctk_help_para(b, &i, "This is the number of X Screens on the "
-                  "display.  (When Xinerama is enabled this is always 1).");
+        ctk_help_heading(b, &i, "Server Vendor Version");
+        ctk_help_para(b, &i, "This is the version number of the X Server "
+                      "vendor.");
+
+        ctk_help_heading(b, &i, "NV-CONTROL Version");
+        ctk_help_para(b, &i, "This is the version number of the NV-CONTROL X extension, "
+                      "used by nvidia-settings to communicate with the "
+                      "NVIDIA X driver.");
+
+        ctk_help_heading(b, &i, "Screens");
+        ctk_help_para(b, &i, "This is the number of X Screens on the "
+                      "display.  (When Xinerama is enabled this is always 1).");
+    }
+
+    if (ctk_object->wayland_available) {
+
+        ctk_help_heading(b, &i, "Wayland Output");
+        ctk_help_para(b, &i, "This is the number of outputs returned by the "
+                             "Wayland Server. Information for each output will "
+                             "be listed below this entry.");
+
+        ctk_help_heading(b, &i, "Wayland Display");
+        ctk_help_para(b, &i, "This is the name of a display on the Wayland "
+                             "Server.");
+
+        ctk_help_heading(b, &i, "Geometry");
+        ctk_help_para(b, &i, "This is the Position information for a display "
+                             "on the Wayland Server.");
+
+        ctk_help_heading(b, &i, "Current Mode");
+        ctk_help_para(b, &i, "This is the Current Mode in use by a display "
+                             "on the Wayland Server.");
+    }
+
 
     ctk_help_finish(b);
 

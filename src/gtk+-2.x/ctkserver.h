@@ -52,6 +52,11 @@ typedef struct _CtkServer
 
     CtkConfig *ctk_config;
 
+    gboolean os_available;
+    gboolean nvml_available;
+    gboolean x_available;
+    gboolean wayland_available;
+
 } CtkServer;
 
 typedef struct _CtkServerClass

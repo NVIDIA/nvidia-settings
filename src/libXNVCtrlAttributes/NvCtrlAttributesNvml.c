@@ -222,6 +222,7 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL_REQUIRED(deviceGetIrqNum,                "nvmlDeviceGetIrqNum");
     GET_SYMBOL_REQUIRED(deviceGetPowerSource,           "nvmlDeviceGetPowerSource");
     GET_SYMBOL_REQUIRED(deviceGetNumFans,               "nvmlDeviceGetNumFans");
+    GET_SYMBOL_REQUIRED(deviceGetDefaultEccMode,        "nvmlDeviceGetDefaultEccMode");
 #undef GET_SYMBOL_REQUIRED
     
 /* Do not fail with older drivers */
@@ -937,6 +938,16 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 }
                 break;
 
+            case NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION:
+                {
+                    nvmlEnableState_t defaultMode;
+                    ret = nvml->lib.deviceGetDefaultEccMode(device, &defaultMode);
+                    if (ret == NVML_SUCCESS) {
+                        res = defaultMode;
+                    }
+                }
+                break;
+
             case NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS:
             case NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS:
             case NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS:
@@ -990,7 +1001,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 ret = nvml->lib.deviceGetPowerSource(device, &res);
                 break;
 
-            case NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION:
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
@@ -1909,6 +1919,7 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_GPU_ECC_STATUS:
             case NV_CTRL_GPU_ECC_CONFIGURATION:
             case NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED:
+            case NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BOOL;
                 break;
 
@@ -1923,7 +1934,6 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BITMASK;
                 break;
 
-            case NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION:
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:

@@ -58,10 +58,6 @@ static const char *__x_display_names_help =
 "It is normally recommended to leave this option "
 "unchecked.";
 
-static const char *__show_quit_dialog_help =
-"When this option is enabled, nvidia-settings will ask if you "
-"really want to quit when the quit button is pressed.";
-
 static const char *__save_current_config_help =
 "When nvidia-settings exits, it saves the current X server "
 "configuration to a configuration file (\"~/.nvidia-settings-rc\", "
@@ -79,7 +75,6 @@ static void ctk_config_class_init(CtkConfigClass *ctk_config_class, gpointer);
 static void display_status_bar_toggled(GtkWidget *, gpointer);
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
-static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
 static void update_rules_on_profile_name_change_toggled(GtkWidget *widget,
                                                         gpointer user_data);
 
@@ -184,12 +179,6 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
             CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE,
             G_CALLBACK(display_name_toggled),
             __x_display_names_help
-        },
-        {
-            "Show \"Really Quit?\" Dialog",
-            CONFIG_PROPERTIES_SHOW_QUIT_DIALOG,
-            G_CALLBACK(show_quit_dialog_toggled),
-            __show_quit_dialog_help
         },
         {
             "Update Rules when an Application Profile Name changes",
@@ -473,22 +462,6 @@ static void display_name_toggled(GtkWidget *widget, gpointer user_data)
 
     ctk_config_statusbar_message(ctk_config, 
                                  "Including X Display Names in Config File %s.",
-                                 active ? "enabled" : "disabled");
-}
-
-static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkConfig *ctk_config = CTK_CONFIG(user_data);
-    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    if (active) {
-        ctk_config->conf->booleans |= CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
-    } else {
-        ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
-    }
-
-    ctk_config_statusbar_message(ctk_config, 
-                                 "Quit confirmation dialog %s.",
                                  active ? "enabled" : "disabled");
 }
 

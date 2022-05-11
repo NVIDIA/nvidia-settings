@@ -223,81 +223,74 @@ static void ctk_window_real_destroy(GtkObject *object)
 
 
 /*
- * confirm_quit_and_save() - Shows the user the quit dialog and
- * saves configuration information before exiting.
+ * confirm_quit_and_save() - Shows the user the quit dialog if there are
+ * pending changes and saves configuration information before exiting.
  */
 
 static void confirm_quit_and_save(CtkWindow *ctk_window)
 {
     CtkConfig *ctk_config = ctk_window->ctk_config;
 
-    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
-        /* ask for confirmation */
-
+    /* Ask for confirmation if there are pending changes. */
+    if (ctk_config->pending_config) {
         const char *beg = "You have pending changes on following page(s):\n\n";
         const char *end = "Do you really want to quit?";
         const char *prefix;
         char *pages, *tmp;
 
         pages = strdup("");
-        if (ctk_config->pending_config) {
-
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "X Server Display Configuration - Apply", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "X Server Display Configuration - "
-                               "Save to X Configuration File", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "SLI Mosaic Mode Settings - "
-                               "Save to X Configuration File", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_APP_PROFILES) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "Application Profiles - Save Changes", NULL);
-                free(pages);
-                pages = tmp;
-            }
-
-            if (pages[0] != '\0') {
-                tmp = nvstrcat(beg, pages, "\n\n", end, NULL);
-                gtk_label_set_text(
-                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                    tmp);
-            } else {
-                gtk_label_set_text(
-                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                    "You have pending changes.\n\n"
-                    "Do you really want to quit?");
-            }
-        } else {
-            gtk_label_set_text(GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                               end);
+        if (ctk_config->pending_config &
+            CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG) {
+            prefix = (strlen(pages) == 0) ? "" : ",\n";
+            tmp = nvstrcat(pages, prefix,
+                           "X Server Display Configuration - Apply", NULL);
+            free(pages);
+            pages = tmp;
+        }
+        if (ctk_config->pending_config &
+            CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG) {
+            prefix = (strlen(pages) == 0) ? "" : ",\n";
+            tmp = nvstrcat(pages, prefix,
+                           "X Server Display Configuration - "
+                           "Save to X Configuration File", NULL);
+            free(pages);
+            pages = tmp;
+        }
+        if (ctk_config->pending_config &
+            CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG) {
+            prefix = (strlen(pages) == 0) ? "" : ",\n";
+            tmp = nvstrcat(pages, prefix,
+                           "SLI Mosaic Mode Settings - "
+                           "Save to X Configuration File", NULL);
+            free(pages);
+            pages = tmp;
+        }
+        if (ctk_config->pending_config &
+            CTK_CONFIG_PENDING_WRITE_APP_PROFILES) {
+            prefix = (strlen(pages) == 0) ? "" : ",\n";
+            tmp = nvstrcat(pages, prefix,
+                           "Application Profiles - Save Changes", NULL);
+            free(pages);
+            pages = tmp;
         }
 
+        if (pages[0] != '\0') {
+            tmp = nvstrcat(beg, pages, "\n\n", end, NULL);
+            gtk_label_set_text(
+                GTK_LABEL(ctk_window->quit_dialog_pending_label),
+                tmp);
+        } else {
+            gtk_label_set_text(
+                GTK_LABEL(ctk_window->quit_dialog_pending_label),
+                "You have pending changes.\n\n"
+                "Do you really want to quit?");
+        }
         gtk_widget_show_all(ctk_window->quit_dialog);
-    } else {
-        /* doesn't return */
-        save_settings_and_exit(ctk_window);
+        return;
     }
+
+    /* doesn't return */
+    save_settings_and_exit(ctk_window);
 }
 
 

@@ -24,6 +24,7 @@
 #include "query-assign.h"
 #include "msg.h"
 #include "version.h"
+#include "wayland-connector.h"
 
 #include <dlfcn.h>
 #include <sys/stat.h>
@@ -133,6 +134,39 @@ static void load_and_resolve_libdata(const char *gui_lib_name,
 }
 
 
+static void load_and_resolve_waylandlib(wayland_lib *wldata)
+{
+    int symbol_error = 0;
+    int name_index;
+    const char* waylandlib_names[] = {
+        "libnvidia-wayland-client.so." NVIDIA_VERSION,
+        "libnvidia-wayland-client.so",
+        NULL};
+
+    for (name_index = 0;
+         !wldata->lib_handle && waylandlib_names[name_index] != NULL;
+         name_index++) {
+        wldata->lib_handle = dlopen(waylandlib_names[name_index], RTLD_NOW);
+    }
+
+    if (wldata->lib_handle) {
+        dlerror(); // clear error msg
+
+        wldata->fn_get_wayland_output_info = dlsym(wldata->lib_handle,
+                                                   "get_wayland_output_info");
+        symbol_error += check_and_save_dlerror(&wldata->error_msg);
+
+        if (symbol_error > 0 ||
+            wldata->fn_get_wayland_output_info == NULL) {
+
+            dlclose(wldata->lib_handle);
+            wldata->lib_handle = NULL;
+        }
+    } else {
+        check_and_save_dlerror(&wldata->error_msg);
+    }
+}
+
 /*
  * remove_flag_from_command_line() - Remove the "--" option and reindexes argv
  * and reindex the command line options so that gtk_init_check() can process its
@@ -228,10 +262,15 @@ int main(int argc, char **argv)
     int ret;
     int gui = 0;
 
+    void *w_output = NULL;
+    wayland_lib wllib;
+
     GtkLibraryData libdata;
 
     libdata.gui_lib_handle = NULL;
     libdata.error_msg = NULL;
+    wllib.lib_handle = NULL;
+    wllib.error_msg = NULL;
 
     systems.n = 0;
     systems.array = NULL;
@@ -371,8 +410,23 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /*
+     * Attempt to load the Wayland connection library. This is not required
+     * so it may fail to load with no issue.
+     */
+    load_and_resolve_waylandlib(&wllib);
+    if (wllib.lib_handle) {
+        w_output = wllib.fn_get_wayland_output_info();
+        if (w_output == NULL) {
+            nv_warning_msg("Wayland Connector Library failed to connect.");
+        }
+    } else {
+        nv_warning_msg("Wayland Connector Library failed to load.");
+    }
+
     /* pass control to the gui */
 
+    system->wayland_output = w_output;
     libdata.fn_ctk_main(p, &conf, system, op->page);
 
     /* write the configuration file */
@@ -386,6 +440,9 @@ int main(int argc, char **argv)
     NvCtrlFreeAllSystems(&systems);
     nv_parsed_attribute_free(p);
     dlclose(libdata.gui_lib_handle);
+    if (wllib.lib_handle) {
+        dlclose(wllib.lib_handle);
+    }
 
     return 0;
 

@@ -140,6 +140,7 @@ struct _CtrlSystem {
     Display *dpy;   /* X display connection */
     Bool has_nv_control;
     Bool has_nvml;
+    void *wayland_output;
 
     CtrlTargetNode *targets[MAX_TARGET_TYPES]; /* Shadows targetTypeTable */
     CtrlTargetNode *physical_screens;

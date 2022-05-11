@@ -186,6 +186,7 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetFanSpeed_v2)                (*deviceGetFanSpeed_v2);
         typeof(nvmlSystemGetDriverVersion)              (*systemGetDriverVersion);
         typeof(nvmlDeviceGetEccMode)                    (*deviceGetEccMode);
+        typeof(nvmlDeviceGetDefaultEccMode)             (*deviceGetDefaultEccMode);
         typeof(nvmlDeviceSetEccMode)                    (*deviceSetEccMode);
         typeof(nvmlDeviceGetTotalEccErrors)             (*deviceGetTotalEccErrors);
         typeof(nvmlDeviceClearEccErrorCounts)           (*deviceClearEccErrorCounts);

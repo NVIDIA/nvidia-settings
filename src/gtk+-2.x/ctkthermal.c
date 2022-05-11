@@ -1660,6 +1660,7 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
+    gboolean any_sensor = FALSE;
 
     b = gtk_text_buffer_new(table);
     
@@ -1667,10 +1668,6 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
 
     ctk_help_title(b, &i, "Thermal Settings Help");
 
-    /* if sensor not available skip online help */
-    if (!ctk_thermal->sensor_count) {
-        goto next_help;
-    }
 
     if (!ctk_thermal->thermal_sensor_target_type_supported) {
         ctk_help_heading(b, &i, "Slowdown Threshold");
@@ -1683,7 +1680,8 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
             ctk_help_heading(b, &i, "Ambient Temperature");
             ctk_help_para(b, &i, "%s", __ambient_temp_help);
         }
-    } else {
+        any_sensor = TRUE;
+    } else if (ctk_thermal->sensor_count > 0) {
         ctk_help_title(b, &i, "Thermal Sensor Information Help");
 
         ctk_help_heading(b, &i, "ID");
@@ -1697,11 +1695,16 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
         
         ctk_help_heading(b, &i, "Provider");
         ctk_help_para(b, &i, "%s", __thermal_sensor_provider_help);
-    }
-    ctk_help_heading(b, &i, "Level");
-    ctk_help_para(b, &i, "%s", __temp_level_help);
 
-next_help:
+        any_sensor = TRUE;
+    }
+
+    if (any_sensor) {
+        ctk_help_heading(b, &i, "Level");
+        ctk_help_para(b, &i, "%s", __temp_level_help);
+    }
+
+
     /* if Fan not available skip online help */
     if (!ctk_thermal->cooler_count) {
         goto done;

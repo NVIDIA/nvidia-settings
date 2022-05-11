@@ -69,6 +69,18 @@ struct _CtkGpu
     gint memory_interface;
     gboolean resizable_bar;
     gboolean pcie_gen_queriable;
+
+    gboolean video_ram_available;
+    gboolean link_speed_available;
+    gboolean graphics_util_available;
+    gboolean video_util_available;
+    gboolean pcie_util_available;
+
+    gboolean bus_type_available;
+    gboolean bus_id_available;
+    gboolean pci_device_id_available;
+    gboolean pci_vendor_id_available;
+    gboolean irq_available;
 };
 
 struct _CtkGpuClass

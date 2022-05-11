@@ -45,6 +45,9 @@ CXX_ONLY_CFLAGS       ?=
 LDFLAGS               ?=
 BIN_LDFLAGS           ?=
 
+STACK_USAGE_WARNING   ?=
+CFLAGS                += $(if $(STACK_USAGE_WARNING),-Wstack-usage=$(STACK_USAGE_WARNING))
+
 HOST_CC               ?= $(CC)
 HOST_LD               ?= $(LD)
 HOST_CFLAGS           ?= $(CFLAGS)
@@ -214,7 +217,7 @@ endif
 ##############################################################################
 
 TEST_CC_ARG = \
- $(shell $(CC) -c -x c /dev/null $(1) -o /dev/null > /dev/null 2>&1 && \
+ $(shell $(CC) -c -x c /dev/null -Werror $(1) -o /dev/null > /dev/null 2>&1 && \
    $(ECHO) $(1))
 
 

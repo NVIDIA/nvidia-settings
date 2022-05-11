@@ -232,6 +232,15 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkpowermode.h
 NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
 
 #
+# files for Wayland Connector lib
+#
+WAYLAND_SRC        += wayland-connector.c
+WAYLAND_EXTRA_DIST += wayland-connector.h
+NVIDIA_SETTINGS_EXTRA_DIST += $(WAYLAND_SRC)
+NVIDIA_SETTINGS_EXTRA_DIST += $(WAYLAND_EXTRA_DIST)
+
+
+#
 # files in the src/jansson directory of nvidia-settings
 #
 JANSSON_SRC += jansson/dump.c

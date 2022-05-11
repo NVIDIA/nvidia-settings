@@ -464,6 +464,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
             get_pcie_link_width_string(ctrl_target,
                                        NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH);
     }
+    ctk_gpu->link_speed_available = (link_speed_str != NULL);
 
     /*
      * GPU information: TOP->MIDDLE - LEFT->RIGHT
@@ -577,6 +578,13 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                       0, 0.5, "IRQ:",
                       0, 0.5, irq);
     }
+
+    ctk_gpu->bus_type_available = (bus != NULL);
+    ctk_gpu->bus_id_available = (pci_bus_id != NULL);
+    ctk_gpu->pci_device_id_available = (pci_device_id[0] != '\0');
+    ctk_gpu->pci_vendor_id_available = (pci_vendor_id[0] != '\0');
+    ctk_gpu->irq_available = (irq != NULL);
+
     if (ctk_gpu->pcie_gen_queriable) { 
         /* spacing */
         row += 3;
@@ -621,6 +629,11 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                           0, 0, "Display Devices:",
                           0, 0, displays);
     }
+
+    ctk_gpu->video_ram_available = (video_ram != NULL);
+    ctk_gpu->graphics_util_available = entry.graphics_specified;
+    ctk_gpu->video_util_available = entry.video_specified;
+    ctk_gpu->pcie_util_available = entry.pcie_specified;
 
     free(product_name);
     free(vbios_version);
@@ -692,14 +705,16 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "VBIOS Version");
     ctk_help_para(b, &i, "This is the Video BIOS version.");
     
-    ctk_help_heading(b, &i, "Total Memory"); 
-    ctk_help_para(b, &i, "This is the overall amount of memory "
-                  "available to your GPU.  With TurboCache(TM) GPUs, "
-                  "this value may exceed the amount of video "
-                  "memory installed on the graphics card.  With "
-                  "integrated GPUs, the value may exceed the amount of "
-                  "dedicated system memory set aside by the system "
-                  "BIOS for use by the integrated GPU.");
+    if (ctk_gpu->video_ram_available) {
+        ctk_help_heading(b, &i, "Total Memory"); 
+        ctk_help_para(b, &i, "This is the overall amount of memory "
+                      "available to your GPU.  With TurboCache(TM) GPUs, "
+                      "this value may exceed the amount of video "
+                      "memory installed on the graphics card.  With "
+                      "integrated GPUs, the value may exceed the amount of "
+                      "dedicated system memory set aside by the system "
+                      "BIOS for use by the integrated GPU.");
+    }
 
     ctk_help_heading(b, &i, "Total Dedicated Memory"); 
     ctk_help_para(b, &i, "This is the amount of memory dedicated "
@@ -721,35 +736,49 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
                       "memory interface.");
     }
 
-    ctk_help_heading(b, &i, "GPU Utilization");
-    ctk_help_para(b, &i, "This is the percentage usage of graphics engine.");
+    if (ctk_gpu->graphics_util_available) {
+        ctk_help_heading(b, &i, "GPU Utilization");
+        ctk_help_para(b, &i, "This is the percentage usage of graphics engine.");
+    }
 
-    ctk_help_heading(b, &i, "Video Engine Utilization");
-    ctk_help_para(b, &i, "This is the percentage usage of video engine");
+    if (ctk_gpu->video_util_available) {
+        ctk_help_heading(b, &i, "Video Engine Utilization");
+        ctk_help_para(b, &i, "This is the percentage usage of video engine");
+    }
 
-    ctk_help_heading(b, &i, "Bus Type");
-    ctk_help_para(b, &i, "This is the bus type which is "
-                  "used to connect the NVIDIA GPU to the rest of "
-                  "your computer; possible values are AGP, PCI, "
-                  "PCI Express and Integrated.");
-    
-    ctk_help_heading(b, &i, "Bus ID");
-    ctk_help_para(b, &i, "This is the GPU's PCI identification string, "
-                  "in X configuration file 'BusID' format: "
-                  "\"bus:device:function\", or, if the PCI domain of the GPU "
-                  "is non-zero, \"bus@domain:device:function\".  Note "
-                  "that all values are in decimal (as opposed to hexadecimal, "
-                  "which is how `lspci` formats its BusID values).");
+    if (ctk_gpu->bus_type_available) {
+        ctk_help_heading(b, &i, "Bus Type");
+        ctk_help_para(b, &i, "This is the bus type which is "
+                      "used to connect the NVIDIA GPU to the rest of "
+                      "your computer; possible values are AGP, PCI, "
+                      "PCI Express and Integrated.");
+    }
 
-    ctk_help_heading(b, &i, "PCI Device ID");
-    ctk_help_para(b, &i, "This is the PCI Device ID of the GPU.");
-    
-    ctk_help_heading(b, &i, "PCI Vendor ID");
-    ctk_help_para(b, &i, "This is the PCI Vendor ID of the GPU.");
-    
-    ctk_help_heading(b, &i, "IRQ");
-    ctk_help_para(b, &i, "This is the interrupt request line assigned to "
-                  "this GPU.");
+    if (ctk_gpu->bus_id_available) {
+        ctk_help_heading(b, &i, "Bus ID");
+        ctk_help_para(b, &i, "This is the GPU's PCI identification string, "
+                      "in X configuration file 'BusID' format: "
+                      "\"bus:device:function\", or, if the PCI domain of the GPU "
+                      "is non-zero, \"bus@domain:device:function\".  Note "
+                      "that all values are in decimal (as opposed to hexadecimal, "
+                      "which is how `lspci` formats its BusID values).");
+    }
+
+    if (ctk_gpu->pci_device_id_available) {
+        ctk_help_heading(b, &i, "PCI Device ID");
+        ctk_help_para(b, &i, "This is the PCI Device ID of the GPU.");
+    }
+
+    if (ctk_gpu->pci_vendor_id_available) {
+        ctk_help_heading(b, &i, "PCI Vendor ID");
+        ctk_help_para(b, &i, "This is the PCI Vendor ID of the GPU.");
+    }
+
+    if (ctk_gpu->irq_available) {
+        ctk_help_heading(b, &i, "IRQ");
+        ctk_help_para(b, &i, "This is the interrupt request line assigned to "
+                      "this GPU.");
+    }
 
     if (ctk_gpu->pcie_gen_queriable) {
         ctk_help_heading(b, &i, "PCIe Generation");
@@ -764,26 +793,32 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
                       "based on the GPU's utilization and performance "
                       "settings.");
 
-        ctk_help_heading(b, &i, "Maximum PCIe Link Speed");
-        ctk_help_para(b, &i, "This is the maximum speed that the PCIe link "
-                      "between the GPU and the system may be trained to.  "
-                      "This is expressed in gigatransfers per second "
-                      "(GT/s).  The link may be dynamically trained to a "
-                      "slower speed, based on the GPU's utilization and "
-                      "performance settings.");
+        if (ctk_gpu->link_speed_available) {
+            ctk_help_heading(b, &i, "Maximum PCIe Link Speed");
+            ctk_help_para(b, &i, "This is the maximum speed that the PCIe link "
+                          "between the GPU and the system may be trained to.  "
+                          "This is expressed in gigatransfers per second "
+                          "(GT/s).  The link may be dynamically trained to a "
+                          "slower speed, based on the GPU's utilization and "
+                          "performance settings.");
+        }
 
-        ctk_help_heading(b, &i, "PCIe Bandwidth Utilization");
-        ctk_help_para(b, &i, "This is the percentage usage of "
-                      "PCIe bandwidth.");
+        if (ctk_gpu->video_util_available) {
+            ctk_help_heading(b, &i, "PCIe Bandwidth Utilization");
+            ctk_help_para(b, &i, "This is the percentage usage of "
+                          "PCIe bandwidth.");
+        }
 
     }
-    
-    ctk_help_heading(b, &i, "X Screens");
-    ctk_help_para(b, &i, "This is the list of X Screens driven by this GPU.");
 
-    ctk_help_heading(b, &i, "Display Devices");
-    ctk_help_para(b, &i, "This is the list of Display Devices (CRTs, TVs etc) "
-                  "enabled on this GPU.");
+    if (ctk_gpu->ctk_config->pCtrlSystem->has_nv_control) {
+        ctk_help_heading(b, &i, "X Screens");
+        ctk_help_para(b, &i, "This is the list of X Screens driven by this GPU.");
+
+        ctk_help_heading(b, &i, "Display Devices");
+        ctk_help_para(b, &i, "This is the list of Display Devices (CRTs, TVs etc) "
+                      "enabled on this GPU.");
+    }
 
     ctk_help_finish(b);
 

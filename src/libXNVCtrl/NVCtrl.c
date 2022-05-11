@@ -29,7 +29,7 @@
 
 #if !defined(XTHREADS)
 #define XTHREADS
-#endif /* XTHREADS */
+#endif /* !XTHREADS */
 
 #include <stdint.h>
 #include <stdlib.h>

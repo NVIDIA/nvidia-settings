@@ -37,6 +37,19 @@ include $(XNVCTRL_DIR)/xnvctrl.mk
 
 PKG_CONFIG            ?= pkg-config
 
+ifndef WAYLAND_AVAILABLE
+  WAYLAND_AVAILABLE := $(shell $(PKG_CONFIG) --exists wayland-client && echo 1)
+endif
+ifeq (1,$(WAYLAND_AVAILABLE))
+  ifndef WAYLAND_CFLAGS
+    WAYLAND_CFLAGS := $(shell $(PKG_CONFIG) --cflags )
+  endif
+  ifndef WAYLAND_LDFLAGS
+    WAYLAND_LDFLAGS := $(shell $(PKG_CONFIG) --libs )
+  endif
+  BUILD_WAYLANDLIB = 1
+endif
+
 ifndef GTK2_CFLAGS
   GTK2_CFLAGS          := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
 endif
@@ -130,6 +143,15 @@ else
   GTK3LIB =
 endif
 
+ifdef BUILD_WAYLANDLIB
+  WAYLANDLIB_NAME = libnvidia-wayland-client.so
+  WAYLANDLIB_DIR  = $(OUTPUTDIR)
+  WAYLANDLIB = $(OUTPUTDIR)/$(WAYLANDLIB_NAME)
+  WAYLANDLIB_SONAME = $(WAYLANDLIB_NAME).$(NVIDIA_SETTINGS_VERSION)
+else
+  WAYLANDLIB =
+endif
+
 CFLAGS += $(XNVCTRL_CFLAGS)
 
 ifeq ($(TARGET_OS),SunOS)
@@ -181,6 +203,7 @@ LIBS += -lX11 -lXext -lm $(LIBDL_LIBS)
 
 GTK2_LIBS += $(GTK2_LDFLAGS)
 GTK3_LIBS += $(GTK3_LDFLAGS)
+WAYLAND_LIBS += $(WAYLAND_LDFLAGS)
 
 # Include all the source lists; dist-files.mk will define NVIDIA_SETTINGS_SRC
 include src.mk
@@ -202,6 +225,7 @@ GTK2_OBJS    = $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK2LIB_DIR))
 GTK3_OBJS    = $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK3LIB_DIR))
 IMAGE_OBJS    = $(addprefix $(OUTPUTDIR)/,$(addsuffix .o,$(notdir $(IMAGE_FILES))))
 IMAGE_HEADERS = $(addprefix $(OUTPUTDIR)/,$(addsuffix .h,$(notdir $(IMAGE_FILES))))
+WAYLAND_OBJS  = $(call BUILD_OBJECT_LIST_WITH_DIR,$(WAYLAND_SRC),$(WAYLANDLIB_DIR))
 
 CFLAGS     += -I .
 CFLAGS     += -I image_data
@@ -231,6 +255,11 @@ ifdef BUILD_GTK3LIB
       CFLAGS += $(GTK3_CFLAGS) -fPIC -I $(XCONFIG_PARSER_DIR)/..
 endif
 
+ifdef BUILD_WAYLANDLIB
+  $(call BUILD_OBJECT_LIST_WITH_DIR,$(WAYLAND_SRC),$(WAYLANDLIB_DIR)): \
+      CFLAGS += $(WAYLAND_CFLAGS) -fPIC
+endif
+
 ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
   $(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
 endif
@@ -250,9 +279,9 @@ endef
 
 .PHONY: all install NVIDIA_SETTINGS_install clean clobber
 
-all: $(NVIDIA_SETTINGS) $(GTK2LIB) $(GTK3LIB)
+all: $(NVIDIA_SETTINGS) $(GTK2LIB) $(GTK3LIB) $(WAYLANDLIB)
 
-install: NVIDIA_SETTINGS_install NVIDIA_GTKLIB_install
+install: NVIDIA_SETTINGS_install NVIDIA_GTKLIB_install WAYLAND_LIB_install
 
 NVIDIA_GTKLIB_install: $(GTK2LIB) $(GTK3LIB)
 	$(MKDIR) $(LIBDIR)
@@ -262,6 +291,11 @@ ifdef BUILD_GTK3LIB
 	$(INSTALL) $(INSTALL_LIB_ARGS) $(GTK3LIB) \
 	    $(LIBDIR)/$(GTK3LIB_SONAME)
 endif
+
+WAYLAND_LIB_install: $(WAYLANDLIB)
+	$(MKDIR) $(LIBDIR)
+	$(INSTALL) $(INSTALL_LIB_ARGS) $(WAYLANDLIB) \
+	    $(LIBDIR)/$(WAYLANDLIB_SONAME)
 
 NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
 	$(MKDIR) $(BINDIR)
@@ -290,6 +324,17 @@ $(GTK3LIB).unstripped: $(LIBXNVCTRL) $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VE
 	    $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS)
 endif
 
+ifdef BUILD_WAYLANDLIB
+$(eval $(call DEBUG_INFO_RULES, $(WAYLANDLIB)))
+$(WAYLANDLIB).unstripped: $(WAYLAND_OBJS)
+	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS)  $(BIN_LDFLAGS) \
+	    $(LIBS) $(WAYLAND_LIBS) \
+	    -Wl,--unresolved-symbols=ignore-all -o $@ \
+	    -Wl,-soname -Wl,$(WAYLANDLIB_SONAME) \
+	    $(WAYLAND_OBJS)
+
+endif
+
 # define the rule to build each object file
 $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 $(foreach src,$(XCP_SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
@@ -298,6 +343,7 @@ clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
 		$(GTK2LIB) $(GTK3LIB) $(GTK2LIB_DIR) $(GTK3LIB_DIR) \
+		$(WAYLANDLIB) $(WAYLANDLIB_DIR) \
 		$(IMAGE_HEADERS) $(LIBXNVCTRL)
 
 $(foreach src,$(GTK_SRC), \
@@ -306,6 +352,11 @@ $(foreach src,$(GTK_SRC), \
 ifdef BUILD_GTK3LIB
 $(foreach src,$(GTK_SRC), \
     $(eval $(call DEFINE_OBJECT_RULE_WITH_DIR,TARGET,$(src),$(GTK3LIB_DIR))))
+endif
+
+ifdef BUILD_WAYLANDLIB
+$(foreach src,$(WAYLAND_SRC), \
+	$(eval $(call DEFINE_OBJECT_RULE_WITH_DIR,TARGET,$(src),$(WAYLANDLIB_DIR))))
 endif
 
 # Build $(IMAGE_OBJS)

@@ -774,7 +774,6 @@ ConfigPropertiesTableEntry configPropertyTable[] = {
     { "SliderTextEntries", CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES },
     { "IncludeDisplayNameInConfigFile",
       CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE },
-    { "ShowQuitDialog", CONFIG_PROPERTIES_SHOW_QUIT_DIALOG },
     { "UpdateRulesOnProfileNameChange",
       CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE },
     { NULL, 0 }
@@ -803,6 +802,7 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     const char *ignoredProperties[] = {
         "TextureSharpen",
         "ToolTips",
+        "ShowQuitDialog"
     };
 
     no_spaces = remove_spaces(line);
@@ -945,7 +945,6 @@ void init_config_properties(ConfigProperties *conf)
     conf->booleans = 
         (CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
          CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
-         CONFIG_PROPERTIES_SHOW_QUIT_DIALOG |
          CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE);
 
     conf->locale = strdup(setlocale(LC_NUMERIC, NULL));
