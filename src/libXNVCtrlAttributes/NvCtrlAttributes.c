@@ -152,6 +152,20 @@ const CtrlTargetTypeInfo *NvCtrlGetTargetTypeInfoByName(const char *name)
 }
 
 
+static int NvCtrlConvertTargetTypeIndex(int nvctrl_type)
+{
+    int i;
+
+    for (i = 0; i < targetTypeInfoTableLen; i++) {
+        if (targetTypeInfoTable[i].nvctrl == nvctrl_type) {
+            return i;
+        }
+    }
+
+    return INVALID_TARGET;
+}
+
+
 
 /*
  * Initializes the control panel backend; this includes probing for the
@@ -1819,7 +1833,8 @@ NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
                 (XNVCtrlAttributeChangedEventTarget *) &xevent;
 
             event->type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
+            event->target_type =
+                NvCtrlConvertTargetTypeIndex(nvctrlevent->target_type);
             event->target_id   = nvctrlevent->target_id;
 
             event->int_attr.attribute               = nvctrlevent->attribute;
@@ -1838,7 +1853,8 @@ NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
                 (XNVCtrlAttributeChangedEventTargetAvailability *) &xevent;
 
             event->type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
+            event->target_type =
+                NvCtrlConvertTargetTypeIndex(nvctrlevent->target_type);
             event->target_id   = nvctrlevent->target_id;
 
             event->int_attr.attribute               = nvctrlevent->attribute;
@@ -1858,7 +1874,8 @@ NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
                 (XNVCtrlStringAttributeChangedEventTarget *) &xevent;
 
             event->type        = CTRL_EVENT_TYPE_STRING_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
+            event->target_type =
+                NvCtrlConvertTargetTypeIndex(nvctrlevent->target_type);
             event->target_id   = nvctrlevent->target_id;
 
             event->str_attr.attribute = nvctrlevent->attribute;
@@ -1875,7 +1892,8 @@ NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
                 (XNVCtrlBinaryAttributeChangedEventTarget *) &xevent;
 
             event->type        = CTRL_EVENT_TYPE_BINARY_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
+            event->target_type =
+                NvCtrlConvertTargetTypeIndex(nvctrlevent->target_type);
             event->target_id   = nvctrlevent->target_id;
 
             event->bin_attr.attribute = nvctrlevent->attribute;
