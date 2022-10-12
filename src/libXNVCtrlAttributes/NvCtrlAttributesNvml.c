@@ -232,6 +232,11 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures_v4");
     GET_SYMBOL_OPTIONAL(deviceGetGspFirmwareMode,        "nvmlDeviceGetGspFirmwareMode");
     GET_SYMBOL_OPTIONAL(deviceGetMemoryInfo_v2,          "nvmlDeviceGetMemoryInfo_v2");
+    GET_SYMBOL_OPTIONAL(deviceSetFanSpeed_v2,            "nvmlDeviceSetFanSpeed_v2");
+    GET_SYMBOL_OPTIONAL(deviceGetTargetFanSpeed,         "nvmlDeviceGetTargetFanSpeed");
+    GET_SYMBOL_OPTIONAL(deviceGetMinMaxFanSpeed,         "nvmlDeviceGetMinMaxFanSpeed");
+    GET_SYMBOL_OPTIONAL(deviceSetFanControlPolicy,       "nvmlDeviceSetFanControlPolicy");
+    GET_SYMBOL_OPTIONAL(deviceGetFanControlPolicy_v2,    "nvmlDeviceGetFanControlPolicy_v2");
 #undef GET_SYMBOL_OPTIONAL
 
     ret = nvml->lib.init();
@@ -1001,11 +1006,22 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 ret = nvml->lib.deviceGetPowerSource(device, &res);
                 break;
 
+            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
+                {
+                    nvmlFanControlPolicy_t policy;
+
+                    /* Get cooler control policy */
+                    ret = nvml->lib.deviceGetFanControlPolicy_v2(device, 0, &policy);
+                    res = (policy == NVML_FAN_POLICY_MANUAL) ?
+                        NV_CTRL_GPU_COOLER_MANUAL_CONTROL_TRUE :
+                        NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE;
+                }
+                break;
+
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
             case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
@@ -1293,11 +1309,13 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     ret = nvml->lib.deviceGetHandleByIndex(deviceId, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
+            case NV_CTRL_THERMAL_COOLER_LEVEL:
+                ret = nvml->lib.deviceGetTargetFanSpeed(device, coolerId, &res);
+                break;
             case NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL:
                 ret = nvml->lib.deviceGetFanSpeed_v2(device, coolerId, &res);
                 break;
 
-            case NV_CTRL_THERMAL_COOLER_LEVEL:
             case NV_CTRL_THERMAL_COOLER_SPEED:
             case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
             case NV_CTRL_THERMAL_COOLER_TARGET:
@@ -1443,9 +1461,19 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
                 }
                 break;
 
+            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
+                {
+                    int i = 0;
+                    int count = nvml->coolerCountPerGPU[nvml->deviceIdx];
+
+                    for (i = 0; i < count; i++) {
+                        ret = nvml->lib.deviceSetFanControlPolicy(device, i, val);
+                    }
+                }
+                break;
+
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
-            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
             case NV_CTRL_DITHERING:
             case NV_CTRL_DITHERING_MODE:
             case NV_CTRL_DITHERING_DEPTH:
@@ -1502,6 +1530,9 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
+                ret = nvml->lib.deviceSetFanSpeed_v2(device, coolerId, val);
+                break;
+
             case NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT:
                 /*
                  * XXX We'll eventually need to add support for this attributes
@@ -1793,13 +1824,14 @@ NvCtrlNvmlGetGPUValidStringAttributeValues(int attr,
 
 
 static ReturnStatus convertValidTypeToAttributeType(CtrlAttributeValidType val,
-                                                   CtrlAttributeType *type)
+                                                    CtrlAttributeType *type)
 {
     switch (val) {
         case CTRL_ATTRIBUTE_VALID_TYPE_INTEGER:
         case CTRL_ATTRIBUTE_VALID_TYPE_BOOL:
         case CTRL_ATTRIBUTE_VALID_TYPE_BITMASK:
         case CTRL_ATTRIBUTE_VALID_TYPE_64BIT_INTEGER:
+        case CTRL_ATTRIBUTE_VALID_TYPE_RANGE:
             *type = CTRL_ATTRIBUTE_TYPE_INTEGER;
             break;
         case CTRL_ATTRIBUTE_VALID_TYPE_STRING:
@@ -1934,11 +1966,14 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BITMASK;
                 break;
 
+            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
+                val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BOOL;
+                break;
+
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
             case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
@@ -2056,6 +2091,7 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
     const NvCtrlNvmlAttributes *nvml;
     int deviceId, coolerId;
+    unsigned int minSpeed, maxSpeed;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -2083,6 +2119,15 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
                 return NvCtrlSuccess;
 
             case NV_CTRL_THERMAL_COOLER_LEVEL:
+                ret = nvml->lib.deviceGetMinMaxFanSpeed(device, &minSpeed, &maxSpeed);
+                if (ret == NVML_SUCCESS) {
+                    /* Range as a percent */
+                    val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_RANGE;
+                    val->range.min = minSpeed;
+                    val->range.max = maxSpeed;
+                }
+                break;
+
             case NV_CTRL_THERMAL_COOLER_SPEED:
             case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
             case NV_CTRL_THERMAL_COOLER_TARGET:
@@ -2170,6 +2215,8 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
 {
     /* Set write permissions */
     switch (attr) {
+        case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
+        case NV_CTRL_THERMAL_COOLER_LEVEL:
         case NV_CTRL_GPU_ECC_CONFIGURATION:
         case NV_CTRL_GPU_ECC_RESET_ERROR_STATUS:
             perms->write = NV_TRUE;
@@ -2197,6 +2244,7 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_GPU_CORES:
         case NV_CTRL_IRQ:
         case NV_CTRL_GPU_POWER_SOURCE:
+        case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
         /* CTRL_ATTRIBUTE_VALID_TYPE_BOOL */
         case NV_CTRL_GPU_ECC_SUPPORTED:
         case NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED:
@@ -2217,6 +2265,7 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
             perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
             break;
 
+        case NV_CTRL_THERMAL_COOLER_LEVEL:
         case NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL:
             perms->valid_targets = CTRL_TARGET_PERM_BIT(COOLER_TARGET);
             perms->read = NV_TRUE;

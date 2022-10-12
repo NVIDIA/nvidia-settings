@@ -595,6 +595,89 @@ int nv_mkdir_recursive(const char *path, const mode_t mode,
 }
 
 
+
+/*
+ * nvdircat() - concatenate path elements, inserting a '/' path separator
+ * character between each element.
+ */
+
+char *nvdircat(const char *str, ...)
+{
+    const char *s;
+    char *result = nvstrdup("");
+    va_list ap;
+
+    va_start(ap, str);
+
+    for (s = str; s; s = va_arg(ap, char *)) {
+        char *oldresult = result;
+
+        result = nvstrcat(result, s == str ? "" : "/", s, NULL);
+        nvfree(oldresult);
+    }
+
+    va_end(ap);
+
+    collapse_multiple_slashes(result);
+
+    return result;
+}
+
+
+/*
+ * dirname(3) workalike that abstracts away implementation-specific behavior:
+ * this function always returns a heap-allocated string that can be passed to
+ * free(3), and never modifies the contents of the original string.
+ */
+char *nv_dirname(const char *path)
+{
+    char *last_slash = strrchr(path, '/');
+    if (last_slash) {
+        return nvstrndup(path, last_slash - path);
+    } else {
+        return nvstrdup(".");
+    }
+}
+
+
+/*
+ * Simple helper function to write the contents of a NUL-terminated string to
+ * a file. A trailing newline is appended if not already present.
+ * Returns TRUE on success; FALSE if an error occurred.
+ */
+int nv_string_to_file(const char *destination, const char *data)
+{
+    char *dname = nv_dirname(destination);
+    int written, newline_success = TRUE;
+    char *error = NULL;
+    int len, ret;
+    FILE *fp;
+
+    ret = nv_mkdir_recursive(dname, 0755, &error, NULL);
+    nvfree(dname);
+    nvfree(error);
+
+    if (!ret) return FALSE;
+
+    fp = fopen(destination, "w");
+    if (!fp) return FALSE;
+
+    len = strlen(data);
+    written = fwrite(data, 1, len, fp);
+    if (data[len-1] != '\n') {
+        if (fwrite("\n", 1, 1, fp) != 1) {
+            newline_success = FALSE;
+        }
+    }
+
+    if (fclose(fp)) return FALSE;
+    if (chmod(destination, 0644)) return FALSE;
+
+    return written == len && newline_success;
+}
+
+
+
 /****************************************************************************/
 /* string helper functions */
 /****************************************************************************/
@@ -720,3 +803,24 @@ void remove_trailing_slashes(char *string)
 
 }
 
+
+
+/*
+ * collapse_multiple_slashes() - remove any/all occurrences of "//" from the
+ * argument string.
+ */
+
+void collapse_multiple_slashes(char *s)
+{
+    char *p;
+
+    while ((p = strstr(s, "//")) != NULL) {
+        p++; /* advance to second '/' */
+        while (*p == '/') {
+            unsigned int i, len;
+
+            len = strlen(p);
+            for (i = 0; i < len; i++) p[i] = p[i+1];
+        }
+    }
+}

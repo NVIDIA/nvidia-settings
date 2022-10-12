@@ -479,7 +479,73 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
 
         free(prefix);
     }
-    
+
+    /*
+     * Write attributes addressable to GPU targets
+     */
+
+    for (node = system->targets[GPU_TARGET]; node; node = node->next) {
+        char *target_str = NULL;
+
+        t = node->t;
+
+        /* skip it if we don't have a handle for this gpu */
+
+        if (!t->h) {
+            continue;
+        }
+
+        /*
+         * Construct the prefix that will be printed in the config
+         * file in front of each attribute.
+         */
+
+        target_str = nvasprintf("[gpu:%d]", NvCtrlGetTargetId(t));
+        nvstrtoupper(target_str);
+
+        /* loop over all the entries in the table */
+
+        for (entry = 0; entry < attributeTableLen; entry++) {
+            const AttributeTableEntry *a = &attributeTable[entry];
+
+            /*
+             * skip all attributes that are not supposed to be written
+             * to the config file
+             */
+
+            if (a->flags.no_config_write) {
+                continue;
+            }
+
+            /* Only write out integer attributes, string attributes
+             * aren't written here.
+             */
+            if (a->type != CTRL_ATTRIBUTE_TYPE_INTEGER) {
+                continue;
+            }
+
+            /*
+             * Only write attributes that can be written for a GPU target
+             */
+
+            status = NvCtrlGetAttributePerms(t, a->type, a->attr, &perms);
+            if (status != NvCtrlSuccess || !(perms.write) ||
+                !(perms.valid_targets & CTRL_TARGET_PERM_BIT(GPU_TARGET)))  {
+                continue;
+            }
+
+            status = NvCtrlGetAttribute(t, a->attr, &val);
+            if (status != NvCtrlSuccess) {
+                continue;
+            }
+
+            fprintf(stream, "%s%c%s=%d\n", target_str,
+                    DISPLAY_NAME_SEPARATOR, a->name, val);
+        }
+
+        free(target_str);
+    }
+
     /*
      * loop the ParsedAttribute list, writing the attributes to file.
      * note that we ignore conf->include_display_name_in_config_file

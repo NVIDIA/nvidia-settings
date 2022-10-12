@@ -75,11 +75,15 @@ void *nv_mmap(const char *filename, size_t len, int prot, int flags, int fd);
 char *nv_basename(const char *path);
 int nv_mkdir_recursive(const char *path, const mode_t mode,
                        char **error_str, char **log_str);
+char *nvdircat(const char *str, ...);
+char *nv_dirname(const char *path);
+int nv_string_to_file(const char *, const char *);
 
 char *nv_trim_space(char *string);
 char *nv_trim_char(char *string, char trim);
 char *nv_trim_char_strict(char *string, char trim);
 void remove_trailing_slashes(char *string);
+void collapse_multiple_slashes(char *s);
 
 int directory_exists(const char *dir);
 

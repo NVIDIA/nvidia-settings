@@ -206,16 +206,6 @@ static int open_and_stat(const char *filename, const char *perms, FILE **fp, str
     return ret;
 }
 
-static char *nv_dirname(const char *path)
-{
-    char *last_slash = strrchr(path, '/');
-    if (last_slash) {
-        return nvstrndup(path, last_slash - path);
-    } else {
-        return nvstrdup(".");
-    }
-}
-
 static json_t *app_profile_config_insert_file_object(AppProfileConfig *config, json_t *new_file)
 {
     json_t *json_filename, *json_new_filename;

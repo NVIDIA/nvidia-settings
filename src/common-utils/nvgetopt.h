@@ -43,7 +43,7 @@
  * through 'boolval'.
  */
 
-#define NVGETOPT_IS_BOOLEAN             0x01
+#define NVGETOPT_IS_BOOLEAN             0x0001
 
 
 /*
@@ -52,7 +52,7 @@
  * through 'strval'.
  */
 
-#define NVGETOPT_STRING_ARGUMENT        0x02
+#define NVGETOPT_STRING_ARGUMENT        0x0002
 
 
 /*
@@ -61,7 +61,7 @@
  * argument through 'intval'.
  */
 
-#define NVGETOPT_INTEGER_ARGUMENT       0x04
+#define NVGETOPT_INTEGER_ARGUMENT       0x0004
 
 
 /*
@@ -70,7 +70,7 @@
  * argument through 'doubleval'.
  */
 
-#define NVGETOPT_DOUBLE_ARGUMENT        0x08
+#define NVGETOPT_DOUBLE_ARGUMENT        0x0008
 
 
 /* helper macro */
@@ -89,7 +89,7 @@
  * take arguments.
  */
 
-#define NVGETOPT_ALLOW_DISABLE          0x10
+#define NVGETOPT_ALLOW_DISABLE          0x0010
 
 
 /*
@@ -99,7 +99,7 @@
  * option is returned without an argument.
  */
 
-#define NVGETOPT_ARGUMENT_IS_OPTIONAL   0x20
+#define NVGETOPT_ARGUMENT_IS_OPTIONAL   0x0020
 
 
 /*
@@ -110,8 +110,27 @@
  * printed.
  */
 
-#define NVGETOPT_HELP_ALWAYS            0x40
+#define NVGETOPT_HELP_ALWAYS            0x0040
 
+
+/*
+ * Indicates that an option is deprecated. The description field of the
+ * NVGetoptOption, if set, may be used to store text explaining why the
+ * option is no longer used.
+ */
+
+#define NVGETOPT_IS_DEPRECATED          0x0080
+
+/*
+ * These flags indicate that a particular boolean or disableable value is no
+ * longer supported. They can be used together with NVGETOPT_DEPRECATED in
+ * order to differentiate between deprecated boolean values or enable/disable
+ * states that will be ignored, and unsupported boolean values or enable/disable
+ * states that are invalid.
+ */
+
+#define NVGETOPT_DISABLE_IS_INVALID     0x0100
+#define NVGETOPT_ENABLE_IS_INVALID      0x0200
 
 typedef struct {
     const char *name;
