@@ -1178,6 +1178,10 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                                    gboolean randr)
 {
     ctk_help_heading(b, i, "Color Correction");
+    ctk_help_para(b, i, "These controls and values are used to create "
+                  "a color profile for this display. It is not currently "
+                  "possible to provide the current color correction values "
+                  "if they have been changed by an external tool.");
 
     ctk_help_term(b, i, "Active Color Channel");
     ctk_help_para(b, i, "%s", __active_color_help);

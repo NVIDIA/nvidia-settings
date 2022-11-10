@@ -26,6 +26,7 @@
 #include "msg.h"
 
 #include "parse.h"
+#include "wayland-connector.h"
 
 #include <X11/extensions/xf86vmode.h>
 #include <X11/extensions/Xvlib.h>
@@ -192,6 +193,41 @@ static void close_libegl(void)
 
 /******************************************************************************
  *
+ * NvCtrlEglDelayedInit()
+ *
+ * Resolves get_wayland_display and gets the EGL Display needed.
+ *
+ ****/
+Bool NvCtrlEglDelayedInit(NvCtrlAttributePrivateHandle *h)
+{
+    int major, minor;
+
+    if (!h || !h->egl || !__libEGL) {
+        return False;
+    } else if (h->egl_dpy) {
+        return True;
+    }
+
+    h->wayland_dpy = wconn_get_wayland_display();
+
+    if (h->nv) {
+        h->egl_dpy = __libEGL->eglGetDisplay(h->dpy);
+    } else {
+        h->egl_dpy = __libEGL->eglGetDisplay(h->wayland_dpy);
+    }
+
+    if (!__libEGL->eglInitialize(h->egl_dpy, &major, &minor)) {
+        h->egl_dpy = NULL;
+        return False;
+    }
+
+    return (h->egl_dpy != EGL_NO_DISPLAY);
+}
+
+
+
+/******************************************************************************
+ *
  * NvCtrlInitEglAttributes()
  *
  * Initializes the NvCtrlEglAttributes Extension by linking the libEGL.so.1 and
@@ -201,10 +237,10 @@ static void close_libegl(void)
 
 Bool NvCtrlInitEglAttributes (NvCtrlAttributePrivateHandle *h)
 {
-    int major, minor;
     /* Check parameters */
-    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
-        return False;
+    if (!h || (!h->dpy && h->target_type == X_SCREEN_TARGET) ||
+              (!wconn_wayland_handle_loaded() && h->target_type == GPU_TARGET)) {
+        return NvCtrlBadHandle;
     }
 
     /* Open libEGL.so.1 */
@@ -212,14 +248,7 @@ Bool NvCtrlInitEglAttributes (NvCtrlAttributePrivateHandle *h)
         return False;
     }
 
-    h->egl_dpy = __libEGL->eglGetDisplay(h->dpy);
-
-    if (!__libEGL->eglInitialize(h->egl_dpy, &major, &minor)) {
-        h->egl_dpy = NULL;
-        return False;
-    }
-
-    return (h->egl_dpy != EGL_NO_DISPLAY);
+    return True;
 
 } /* NvCtrlInitEglAttributes() */
 
@@ -241,9 +270,11 @@ NvCtrlEglAttributesClose (NvCtrlAttributePrivateHandle *h)
         return;
     }
 
-    __libEGL->eglTerminate(h->egl_dpy);
+    if (__libEGL) {
+        __libEGL->eglTerminate(h->egl_dpy);
 
-    close_libegl();
+        close_libegl();
+    }
 
     h->egl_dpy = NULL;
     h->egl = False;
@@ -271,9 +302,6 @@ static EGLConfigAttr *get_configs(const NvCtrlAttributePrivateHandle *h)
     int               i;
     EGLBoolean        ret; /* Return value of eglGetConfigAttr */
 
-
-
-    assert(h->target_type == X_SCREEN_TARGET);
 
 
     /* Get all fbconfigs for the display/screen */
@@ -465,9 +493,10 @@ ReturnStatus NvCtrlEglGetVoidAttribute(const NvCtrlAttributePrivateHandle *h,
 
 
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
+    if ( !h || !h->egl_dpy) {
         return NvCtrlBadHandle;
     }
+
     if ( !h->egl || !__libEGL ) {
         return NvCtrlMissingExtension;
     }
@@ -514,7 +543,7 @@ ReturnStatus NvCtrlEglGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
     const char *str = NULL;
 
     /* Validate */
-    if ( !h || !h->egl_dpy || h->target_type != X_SCREEN_TARGET ) {
+    if ( !h || !h->egl_dpy) {
         return NvCtrlBadHandle;
     }
     if ( !h->egl || !__libEGL ) {

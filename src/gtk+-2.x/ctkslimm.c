@@ -53,6 +53,7 @@ static void remove_duplicate_modelines_from_list(CtkMMDialog *ctk_mmdialog);
 static Bool other_displays_have_modeline(nvLayoutPtr layout, 
                                          nvDisplayPtr display,
                                          nvModeLinePtr modeline);
+static void populate_dropdown(CtkMMDialog *ctk_mmdialog);
 
 
 typedef struct DpyLocRec { // Display Location
@@ -85,6 +86,47 @@ static void set_overlap_controls_status(CtkMMDialog *ctk_object)
                              y_displays > 1 ? True : False);
 }
 
+static Bool compute_screen_size_details(CtkMMDialog *ctk_object,
+                                        gint rows, gint cols,
+                                        gint *width, gint *height)
+{
+    int h_overlap = 0;
+    int v_overlap = 0;
+
+    if (!ctk_object->cur_modeline) {
+        return FALSE;
+    }
+
+    h_overlap = gtk_spin_button_get_value_as_int(
+                    GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
+    v_overlap = gtk_spin_button_get_value_as_int(
+                    GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
+
+    /* Total X Screen Size Calculation */
+    *width  = cols * ctk_object->cur_modeline->data.hdisplay -
+              (cols - 1) * h_overlap;
+    *height = rows * ctk_object->cur_modeline->data.vdisplay -
+              (rows - 1) * v_overlap;
+
+    return TRUE;
+}
+
+
+static Bool compute_valid_screen_size(CtkMMDialog *ctk_object,
+                                      int rows, int cols)
+{
+    gint width, height;
+
+    if (!compute_screen_size_details(ctk_object,
+                                     rows, cols,
+                                     &width, &height)) {
+        return FALSE;
+    }
+
+    return (width  < ctk_object->max_screen_width &&
+            height < ctk_object->max_screen_height);
+}
+
 
 
 static Bool compute_screen_size(CtkMMDialog *ctk_object, gint *width,
@@ -92,14 +134,8 @@ static Bool compute_screen_size(CtkMMDialog *ctk_object, gint *width,
 {
     gint config_idx;
     gint x_displays,y_displays;
-    gint h_overlap, v_overlap;
 
     CtkDropDownMenu *menu;
-
-
-    if (!ctk_object->cur_modeline) {
-        return FALSE;
-    }
 
     menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
     config_idx = ctk_drop_down_menu_get_current_value(menu);
@@ -112,16 +148,9 @@ static Bool compute_screen_size(CtkMMDialog *ctk_object, gint *width,
         x_displays = y_displays = 0;
     }
 
-    h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
-    v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
-
-    /* Total X Screen Size Calculation */
-    *width = x_displays * ctk_object->cur_modeline->data.hdisplay - 
-        (x_displays - 1) * h_overlap;
-    *height = y_displays * ctk_object->cur_modeline->data.vdisplay - 
-        (y_displays - 1) * v_overlap;
-
-    return TRUE;
+    return compute_screen_size_details(ctk_object,
+                                       y_displays, x_displays,
+                                       width, height);
 }
 
 
@@ -131,7 +160,10 @@ static void validate_screen_size(CtkMMDialog *ctk_object)
     gint width, height;
     Bool error = FALSE;
     gchar *err_msg = NULL;
+    GtkWidget *button;
 
+    button = ctk_dialog_get_widget_for_response(GTK_DIALOG(ctk_object->dialog),
+                                                GTK_RESPONSE_APPLY);
 
     /* Make sure the screen size is acceptable */
     if (!compute_screen_size(ctk_object, &width, &height)) {
@@ -147,6 +179,10 @@ static void validate_screen_size(CtkMMDialog *ctk_object)
                                   width, height,
                                   ctk_object->max_screen_width,
                                   ctk_object->max_screen_height);
+    }
+
+    if (button) {
+        gtk_widget_set_sensitive(button, !error);
     }
 
     if (error) {
@@ -240,6 +276,11 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     gtk_spin_button_set_range(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap),
                               -modeline->data.vdisplay,
                               modeline->data.vdisplay);
+
+    /* Show size warning if detected before rebuilding grid config options */
+    validate_screen_size(ctk_object);
+
+    populate_dropdown(ctk_object);
 
     setup_total_size_label(ctk_object);
 
@@ -1078,12 +1119,13 @@ static void generate_configs(CtkMMDialog *ctk_mmdialog, gboolean only_max)
 
 
 
-static void populate_dropdown(CtkMMDialog *ctk_mmdialog, gboolean only_max)
+static void populate_dropdown(CtkMMDialog *ctk_mmdialog)
 {
     int iter;
     int rows, cols;
     int cur_rows, cur_cols;
     char *tmp;
+    gboolean only_max;
 
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_mmdialog->mnu_display_config);
     int grid_config_id = ctk_drop_down_menu_get_current_value(menu);
@@ -1102,17 +1144,36 @@ static void populate_dropdown(CtkMMDialog *ctk_mmdialog, gboolean only_max)
     }
     ctk_drop_down_menu_reset(menu);
 
+    only_max = FALSE;
+    if (ctk_mmdialog->chk_all_displays != NULL) {
+        only_max = gtk_toggle_button_get_active(
+                       GTK_TOGGLE_BUTTON(ctk_mmdialog->chk_all_displays));
+    }
 
     generate_configs(ctk_mmdialog, only_max);
 
 
+    grid_config_id = 0;
     for (iter = 0; iter < ctk_mmdialog->num_grid_configs; iter++) {
         rows = ctk_mmdialog->grid_configs[iter].rows;
         cols = ctk_mmdialog->grid_configs[iter].columns;
 
+        if (!compute_valid_screen_size(ctk_mmdialog, rows, cols)) {
+            /* Skip configs that exceed the max screen size */
+            continue;
+        }
+
         tmp = g_strdup_printf("%d x %d grid", rows, cols);
 
+        g_signal_handlers_block_by_func(
+            G_OBJECT(ctk_mmdialog->mnu_display_config),
+            G_CALLBACK(display_config_changed), (gpointer) ctk_mmdialog);
+
         ctk_drop_down_menu_append_item(menu, tmp, iter);
+
+        g_signal_handlers_unblock_by_func(
+            G_OBJECT(ctk_mmdialog->mnu_display_config),
+            G_CALLBACK(display_config_changed), (gpointer) ctk_mmdialog);
 
         if (cur_rows == rows && cur_cols == cols) {
             grid_config_id = iter;
@@ -1128,9 +1189,6 @@ static void restrict_display_config_changed(GtkWidget *widget,
                                             gpointer user_data)
 {
     CtkMMDialog *ctk_mmdialog = (CtkMMDialog *)(user_data);
-
-    populate_dropdown(ctk_mmdialog,
-                      gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
 
     update_mosaic_dialog_ui(ctk_mmdialog, NULL);
 }
@@ -1233,13 +1291,12 @@ static nvDisplayPtr setup_display(CtkMMDialog *ctk_mmdialog)
 
 void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
 {
-    GtkWidget *btn;
+    nvModeLineItemPtr iter;
+    char *id;
 
     if (ctk_mmdialog == NULL) {
         return;
     }
-
-    btn = ctk_mmdialog->chk_all_displays;
 
     if (layout) {
         ctk_mmdialog->layout = layout;
@@ -1250,10 +1307,22 @@ void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
                        &ctk_mmdialog->h_overlap_parsed,
                        &ctk_mmdialog->v_overlap_parsed);
 
+    id = g_strdup(ctk_mmdialog->cur_modeline->data.identifier);
+
     setup_display(ctk_mmdialog);
 
-    populate_dropdown(ctk_mmdialog,
-                      gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(btn)));
+    iter = ctk_mmdialog->modelines;
+    while (iter->next) {
+        if (strcmp(id, iter->modeline->data.identifier) == 0) {
+            ctk_mmdialog->cur_modeline = iter->modeline;
+            break;
+        } else {
+            iter = iter->next;
+        }
+    }
+    g_free(id);
+
+    populate_dropdown(ctk_mmdialog);
 
     setup_display_resolution_dropdown(ctk_mmdialog);
     setup_display_refresh_dropdown(ctk_mmdialog);
@@ -1464,18 +1533,18 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     only_max = (ctk_mmdialog->parsed_rows * ctk_mmdialog->parsed_cols ==
                 ctk_mmdialog->num_displays);
 
-    populate_dropdown(ctk_mmdialog, only_max);
-
-    g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_config), "changed",
-                     G_CALLBACK(display_config_changed),
-                     (gpointer) ctk_mmdialog);
-
     checkbutton = gtk_check_button_new_with_label("Only show configurations "
                                                   "using all displays");
     ctk_mmdialog->chk_all_displays = checkbutton;
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), only_max);
     g_signal_connect(G_OBJECT(checkbutton), "toggled",
                      G_CALLBACK(restrict_display_config_changed),
+                     (gpointer) ctk_mmdialog);
+
+    populate_dropdown(ctk_mmdialog);
+
+    g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_config), "changed",
+                     G_CALLBACK(display_config_changed),
                      (gpointer) ctk_mmdialog);
 
     label = gtk_label_new("");
@@ -1671,7 +1740,9 @@ void ctk_mmdialog_insert_help(GtkTextBuffer *b, GtkTextIter *i)
     ctk_help_heading(b, i, "Display Configuration");
     ctk_help_para(b, i, "This drop down menu allows selection of the display grid "
                   "configuration for SLI Mosaic Mode; the possible configurations "
-                  "are described as rows x columns.");
+                  "are described as rows x columns. Configurations that exceed "
+                  "the maximum screen dimensions will be omitted from the list "
+                  "of options.");
     
     ctk_help_heading(b, i, "Resolution");
     ctk_help_para(b, i, "This drop down menu allows selection of the resolution to "

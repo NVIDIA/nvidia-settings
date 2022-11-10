@@ -611,6 +611,7 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
 {
     CtrlSystem     *system;
     CtrlTargetNode *node;
+    CtrlTargetType target;
     ReturnStatus   status = NvCtrlSuccess;
 
     char *egl_vendor        = NULL;
@@ -626,12 +627,18 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
         return;
     }
 
-    /* Print information for each screen */
-    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+    if (system->has_nv_control) {
+        target = X_SCREEN_TARGET;
+    } else {
+        target = GPU_TARGET;
+    }
+
+    /* Print information for each target */
+    for (node = system->targets[target]; node; node = node->next) {
 
         CtrlTarget *t = node->t;
 
-        /* No screen, move on */
+        /* No target, move on */
         if (!t->h) continue;
 
         nv_msg(NULL, "EGL Information for %s:", t->name);
@@ -695,7 +702,11 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
         SAFE_FREE(egl_extensions);
         SAFE_FREE(egl_config_attribs);
 
-    } /* Done looking at all screens */
+        /* If using a gpu, only process the first target */
+        if (target == GPU_TARGET) {
+            break;
+        }
+    } /* Done looking at all targets */
 
 
     /* Fall through */

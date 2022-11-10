@@ -251,7 +251,18 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
         if (subsystems & NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM) {
             h->egl = NvCtrlInitEglAttributes(h);
         }
-    } /* X Screen target type attribute subsystems */
+
+    } else if (target_type == GPU_TARGET) {
+
+        /*
+         * EGL may still be available on non-X systems. If there are no
+         * X Screen targets, try initializing graphics on the GPU.
+         */
+
+        if (subsystems & NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM) {
+            h->egl = NvCtrlInitEglAttributes(h);
+        }
+    }
 
     /*
      * initialize the XRandR extension and attributes; this does not
@@ -788,7 +799,9 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
 
     if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
         ((attr >= NV_CTRL_ATTR_NV_BASE) &&
-         (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
+         (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE)) ||
+        ((attr >= NV_CTRL_ATTR_NVML_BASE) &&
+         (attr <= NV_CTRL_ATTR_NVML_LAST_ATTRIBUTE))) {
         ReturnStatus ret = NvCtrlMissingExtension;
 
         switch (h->target_type) {
@@ -855,7 +868,9 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+    if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
+        ((attr >= NV_CTRL_ATTR_NVML_BASE) &&
+         (attr <= NV_CTRL_ATTR_NVML_LAST_ATTRIBUTE))) {
         switch (h->target_type) {
             case GPU_TARGET:
             case THERMAL_SENSOR_TARGET:
@@ -915,6 +930,7 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
         if (!(h->egl)) {
             return NvCtrlMissingExtension;
         }
+        NvCtrlEglDelayedInit(ctrl_target->h);
         return NvCtrlEglGetVoidAttribute(h, display_mask, attr, ptr);
     }
 
@@ -935,7 +951,9 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
     
-    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+    if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
+        ((attr >= NV_CTRL_ATTR_NVML_BASE) &&
+         (attr <= NV_CTRL_ATTR_NVML_LAST_ATTRIBUTE))) {
         switch (h->target_type) {
             case GPU_TARGET:
             case THERMAL_SENSOR_TARGET:
@@ -1138,6 +1156,7 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
             if ((attr >= NV_CTRL_STRING_EGL_BASE) &&
                 (attr <= NV_CTRL_STRING_EGL_LAST_ATTRIBUTE)) {
                 if (!h->egl) return NvCtrlMissingExtension;
+                NvCtrlEglDelayedInit(ctrl_target->h);
                 return NvCtrlEglGetStringAttribute(h, display_mask, attr, ptr);
             }
 

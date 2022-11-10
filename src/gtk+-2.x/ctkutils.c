@@ -152,6 +152,17 @@ GtkWidget *ctk_dialog_get_content_area(GtkDialog *d)
 #endif
 }
 
+GtkWidget *ctk_dialog_get_widget_for_response(GtkDialog *d, gint id)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.20 */
+    return gtk_dialog_get_widget_for_response(d, id);
+#else
+    /* Not implemented */
+    return NULL;
+#endif
+}
+
 gdouble ctk_adjustment_get_page_increment(GtkAdjustment *a)
 {
 #ifdef CTK_GTK3

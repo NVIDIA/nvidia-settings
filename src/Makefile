@@ -50,12 +50,26 @@ ifeq (1,$(WAYLAND_AVAILABLE))
   BUILD_WAYLANDLIB = 1
 endif
 
-ifndef GTK2_CFLAGS
-  GTK2_CFLAGS          := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
+ifndef GTK2_AVAILABLE
+  GTK2_AVAILABLE := $(shell $(PKG_CONFIG) --exists gtk+-2.0 && echo 1)
 endif
 
-ifndef GTK2_LDFLAGS
-  GTK2_LDFLAGS         := -Wl,--no-as-needed $(shell $(PKG_CONFIG) --libs gtk+-2.0)
+ifeq (1,$(GTK2_AVAILABLE))
+  ifndef GTK2_CFLAGS
+    GTK2_CFLAGS          := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
+  endif
+
+  ifndef GTK2_LDFLAGS
+    GTK2_LDFLAGS         := -Wl,--no-as-needed $(shell $(PKG_CONFIG) --libs gtk+-2.0)
+  endif
+else
+  GTK2_CFLAGS ?=
+  GTK2_LDFLAGS ?=
+endif
+
+# If GTK2_CFLAGS is set, try and build GTK2LIB
+ifdef GTK2_CFLAGS
+  BUILD_GTK2LIB = 1
 endif
 
 ifndef GTK3_AVAILABLE
@@ -127,10 +141,16 @@ NVIDIA_SETTINGS = $(OUTPUTDIR)/nvidia-settings
 
 NVIDIA_SETTINGS_VERSION := $(NVIDIA_VERSION)
 
-GTK2LIB_NAME = libnvidia-gtk2.so
-GTK2LIB_DIR  = $(OUTPUTDIR)/gtk2
-GTK2LIB = $(OUTPUTDIR)/$(GTK2LIB_NAME)
-GTK2LIB_SONAME = $(GTK2LIB_NAME).$(NVIDIA_SETTINGS_VERSION)
+ifdef BUILD_GTK2LIB
+  GTK2LIB_NAME = libnvidia-gtk2.so
+  GTK2LIB_DIR  = $(OUTPUTDIR)/gtk2
+  GTK2LIB = $(OUTPUTDIR)/$(GTK2LIB_NAME)
+  GTK2LIB_SONAME = $(GTK2LIB_NAME).$(NVIDIA_SETTINGS_VERSION)
+else
+  # This value is empty if we are not building GTK2 so that the
+  # nvidia-settings build step has this as an empty dependency.
+  GTK2LIB =
+endif
 
 ifdef BUILD_GTK3LIB
   GTK3LIB_NAME = libnvidia-gtk3.so
@@ -247,8 +267,10 @@ CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
 
 $(call BUILD_OBJECT_LIST,$(XCP_SRC)): CFLAGS += -fPIC
 
-$(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK2LIB_DIR)): \
-    CFLAGS += $(GTK2_CFLAGS) -fPIC -I $(XCONFIG_PARSER_DIR)/..
+ifdef BUILD_GTK2LIB
+  $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK2LIB_DIR)): \
+      CFLAGS += $(GTK2_CFLAGS) -fPIC -I $(XCONFIG_PARSER_DIR)/..
+endif
 
 ifdef BUILD_GTK3LIB
   $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK3LIB_DIR)): \
@@ -277,26 +299,31 @@ endef
 # build rules
 ##############################################################################
 
-.PHONY: all install NVIDIA_SETTINGS_install clean clobber
-
+.PHONY: all
 all: $(NVIDIA_SETTINGS) $(GTK2LIB) $(GTK3LIB) $(WAYLANDLIB)
 
+.PHONY: install
 install: NVIDIA_SETTINGS_install NVIDIA_GTKLIB_install WAYLAND_LIB_install
 
+.PHONY: NVIDIA_GTKLIB_install
 NVIDIA_GTKLIB_install: $(GTK2LIB) $(GTK3LIB)
 	$(MKDIR) $(LIBDIR)
+ifdef BUILD_GTK2LIB
 	$(INSTALL) $(INSTALL_LIB_ARGS) $(GTK2LIB) \
 	    $(LIBDIR)/$(GTK2LIB_SONAME)
+endif
 ifdef BUILD_GTK3LIB
 	$(INSTALL) $(INSTALL_LIB_ARGS) $(GTK3LIB) \
 	    $(LIBDIR)/$(GTK3LIB_SONAME)
 endif
 
+.PHONY: WAYLAND_LIB_install
 WAYLAND_LIB_install: $(WAYLANDLIB)
 	$(MKDIR) $(LIBDIR)
 	$(INSTALL) $(INSTALL_LIB_ARGS) $(WAYLANDLIB) \
 	    $(LIBDIR)/$(WAYLANDLIB_SONAME)
 
+.PHONY: NVIDIA_SETTINGS_install
 NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
 	$(MKDIR) $(BINDIR)
 	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(BINDIR)/$(notdir $<)
@@ -306,6 +333,7 @@ $(NVIDIA_SETTINGS).unstripped: $(OBJS) $(LIBXNVCTRL)
 	$(call quiet_cmd,LINK) $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
 	    -rdynamic -o $@ $(OBJS) $(LIBXNVCTRL) $(LIBS)
 
+ifdef BUILD_GTK2LIB
 $(eval $(call DEBUG_INFO_RULES, $(GTK2LIB)))
 $(GTK2LIB).unstripped: $(LIBXNVCTRL) $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
@@ -313,6 +341,7 @@ $(GTK2LIB).unstripped: $(LIBXNVCTRL) $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VE
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK2LIB_SONAME) \
 	    $(GTK2_OBJS) $(IMAGE_OBJS) $(XCP_OBJS)
+endif
 
 ifdef BUILD_GTK3LIB
 $(eval $(call DEBUG_INFO_RULES, $(GTK3LIB)))
@@ -339,6 +368,13 @@ endif
 $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 $(foreach src,$(XCP_SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
+ifndef BUILD_GTK3LIB
+  ifndef BUILD_GTK2LIB
+    $(error Neither GTK2 nor GTK3 build dependencies found; please check `pkg-config --exists gtk+-3.0`)
+  endif
+endif
+
+.PHONY: clean clobber
 clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
@@ -346,8 +382,10 @@ clean clobber:
 		$(WAYLANDLIB) $(WAYLANDLIB_DIR) \
 		$(IMAGE_HEADERS) $(LIBXNVCTRL)
 
+ifdef BUILD_GTK2LIB
 $(foreach src,$(GTK_SRC), \
     $(eval $(call DEFINE_OBJECT_RULE_WITH_DIR,TARGET,$(src),$(GTK2LIB_DIR))))
+endif
 
 ifdef BUILD_GTK3LIB
 $(foreach src,$(GTK_SRC), \
@@ -366,7 +404,9 @@ $(foreach png,$(IMAGE_FILES), \
 # Build $(IMAGE_HEADERS)
 $(foreach png,$(IMAGE_FILES), \
   $(eval $(call BINARY_DATA_HEADER_RULE,$(png))))
-$(GTK2_OBJS): $(IMAGE_HEADERS)
+ifdef BUILD_GTK2LIB
+  $(GTK2_OBJS): $(IMAGE_HEADERS)
+endif
 ifdef BUILD_GTK3LIB
   $(GTK3_OBJS): $(IMAGE_HEADERS)
 endif

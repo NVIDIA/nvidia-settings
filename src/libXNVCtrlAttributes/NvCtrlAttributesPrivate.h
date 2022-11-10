@@ -231,6 +231,9 @@ struct __NvCtrlAttributePrivateHandle {
 
     /* NVML-specific attributes */
     NvCtrlNvmlAttributes *nvml;
+
+    /* Wayland display ptr */
+    void *wayland_dpy;
 };
 
 struct __NvCtrlEventPrivateHandle {
@@ -320,6 +323,7 @@ ReturnStatus NvCtrlEglGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
 
 ReturnStatus NvCtrlEglGetStringAttribute(const NvCtrlAttributePrivateHandle *,
                                          unsigned int, int, char **);
+Bool NvCtrlEglDelayedInit(NvCtrlAttributePrivateHandle *);
 
 /* XRandR extension attribute functions */
 

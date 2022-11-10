@@ -22,6 +22,7 @@
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
+#include <NvCtrlAttributesPrivate.h>
 
 #include "msg.h"
 
@@ -906,7 +907,6 @@ static gboolean update_powermizer_info(gpointer user_data)
 {
     gint power_source, adaptive_clock, perf_level;
     gint gpu_clock, memory_transfer_rate;
-
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
     CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     gint ret;
@@ -1681,7 +1681,6 @@ static void powermizer_menu_changed(GtkWidget *widget,
 
     post_powermizer_menu_update(ctk_powermizer);
 }
-
 
 
 GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,

@@ -340,6 +340,7 @@ const AttributeTableEntry attributeTable[] = {
 
     /* Dynamic Boost */
     { "DynamicBoostSupport",              NV_CTRL_DYNAMIC_BOOST_SUPPORT,                INT_ATTR, {0,0,0,1,0}, {},  "Returns whether the system supports Dynamic Boost." },
+
 };
 
 const int attributeTableLen = ARRAY_LEN(attributeTable);

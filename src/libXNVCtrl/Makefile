@@ -48,10 +48,10 @@ LDFLAGS += $(XNVCTRL_LDFLAGS)
 # build rules
 ##############################################################################
 
-.PHONY: clean
-
+.PHONY: all
 all: $(LIBXNVCTRL)
 
+.PHONY: clean
 clean:
 	rm -rf $(LIBXNVCTRL) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d

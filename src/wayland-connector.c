@@ -157,3 +157,8 @@ wayland_output_info *get_wayland_output_info(void)
 
     return data.output;
 }
+
+void *get_wayland_display(void)
+{
+    return (void*) wl_display_connect(NULL);
+}

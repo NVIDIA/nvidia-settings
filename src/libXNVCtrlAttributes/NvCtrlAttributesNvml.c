@@ -1005,7 +1005,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 assert(NV_CTRL_GPU_POWER_SOURCE_BATTERY == NVML_POWER_SOURCE_BATTERY);
                 ret = nvml->lib.deviceGetPowerSource(device, &res);
                 break;
-
             case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
                 {
                     nvmlFanControlPolicy_t policy;
@@ -1831,6 +1830,7 @@ static ReturnStatus convertValidTypeToAttributeType(CtrlAttributeValidType val,
         case CTRL_ATTRIBUTE_VALID_TYPE_BOOL:
         case CTRL_ATTRIBUTE_VALID_TYPE_BITMASK:
         case CTRL_ATTRIBUTE_VALID_TYPE_64BIT_INTEGER:
+        case CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS:
         case CTRL_ATTRIBUTE_VALID_TYPE_RANGE:
             *type = CTRL_ATTRIBUTE_TYPE_INTEGER;
             break;
@@ -2255,10 +2255,7 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS:
         case NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS:
         case NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS:
-            perms->read = NV_TRUE;
-            perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
-            break;
-
+        /* CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS */
         /* GPU_TARGET non-readable attribute */
         case NV_CTRL_GPU_ECC_RESET_ERROR_STATUS:
             perms->read  = NV_FALSE;

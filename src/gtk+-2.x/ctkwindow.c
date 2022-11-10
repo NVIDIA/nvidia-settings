@@ -664,16 +664,45 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     }
 
     /* System Information */
+    ctk_event = CTK_EVENT(ctk_event_new(default_gpu_target));
 
     if (ctrl_target) {
 
         GtkWidget *child;
 
         child = ctk_server_new(ctrl_target, ctk_config);
-        add_page(child,
-                 ctk_server_create_help(tag_table, CTK_SERVER(child)),
-                 ctk_window, NULL, NULL, "System Information",
-                 NULL, NULL, NULL);
+
+        if (system->has_nv_control) {
+            add_page(child,
+                     ctk_server_create_help(tag_table, CTK_SERVER(child)),
+                     ctk_window, NULL, NULL, "System Information",
+                     NULL, NULL, NULL);
+        } else if (child) {
+            gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+            gtk_tree_store_set(ctk_window->tree_store, &iter,
+                               CTK_WINDOW_LABEL_COLUMN,
+                               "System Information", -1);
+
+
+            g_object_ref(G_OBJECT(child));
+            gtk_tree_store_set(ctk_window->tree_store, &iter,
+                               CTK_WINDOW_WIDGET_COLUMN, child, -1);
+            gtk_tree_store_set(ctk_window->tree_store, &iter,
+                               CTK_WINDOW_HELP_COLUMN,
+                               ctk_server_create_help(tag_table,
+                                                      CTK_SERVER(child)),
+                               -1);
+            gtk_tree_store_set(ctk_window->tree_store, &iter,
+                               CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                               NULL, -1);
+
+            child = ctk_glx_new(default_gpu_target, ctk_config, ctk_event);
+            if (child) {
+                help = ctk_glx_create_help(tag_table, CTK_GLX(child));
+                add_page(child, help, ctk_window, &iter, NULL,
+                             "Graphics Information", NULL, ctk_glx_probe_info, NULL);
+            }
+        }
     }
 
     /* X Server Display Configuration */
@@ -698,7 +727,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* Platform Power Mode */
 
-    ctk_event = CTK_EVENT(ctk_event_new(default_gpu_target));
     widget = ctk_powermode_new(default_gpu_target, ctk_config, ctk_event);
     if (widget) {
         help = ctk_powermode_create_help(tag_table, CTK_POWERMODE(widget));
@@ -787,11 +815,13 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* Graphics Information */
 
-        child = ctk_glx_new(screen_target, ctk_config, ctk_event);
-        if (child) {
-            help = ctk_glx_create_help(tag_table, CTK_GLX(child));
-            add_page(child, help, ctk_window, &iter, NULL,
-                     "Graphics Information", NULL, ctk_glx_probe_info, NULL);
+        if (system->has_nv_control) {
+            child = ctk_glx_new(screen_target, ctk_config, ctk_event);
+            if (child) {
+                help = ctk_glx_create_help(tag_table, CTK_GLX(child));
+                add_page(child, help, ctk_window, &iter, NULL,
+                         "Graphics Information", NULL, ctk_glx_probe_info, NULL);
+            }
         }
 
 

@@ -59,6 +59,11 @@ struct _CtkGLX
     GtkWidget *show_egl_fbc_button;
     GtkWidget *fbc_window;
     GtkWidget *egl_fbc_window;
+
+    gboolean glx_fbconfigs_available;
+    gboolean egl_fbconfigs_available;
+    gboolean glx_available;
+    gboolean egl_available;
 };
 
 struct _CtkGLXClass

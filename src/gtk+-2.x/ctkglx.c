@@ -623,8 +623,6 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
     GtkWidget *show_egl_fbc_button;
 
     ReturnStatus ret;
-    gboolean glx_fbconfigs_available;
-    gboolean egl_fbconfigs_available;
 
     GLXFBConfigAttr *fbconfig_attribs = NULL;   /* FBConfig data */
     EGLConfigAttr *egl_fbconfig_attribs = NULL; /* EGL Configs data */
@@ -714,7 +712,7 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
     /* GLX 1.3 supports frame buffer configurations */
 #ifdef GLX_VERSION_1_3
 
-    glx_fbconfigs_available = TRUE;
+    ctk_glx->glx_fbconfigs_available = TRUE;
 
     /* Grab the FBConfigs */
     ret = NvCtrlGetVoidAttribute(ctrl_target,
@@ -723,7 +721,7 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to query list of GLX frame buffer "
                        "configurations.");
-        glx_fbconfigs_available = FALSE;
+        ctk_glx->glx_fbconfigs_available = FALSE;
     } else {
         /* Count the number of fbconfigs */
         if (fbconfig_attribs) {
@@ -733,11 +731,11 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
         }
         if (num_fbconfigs == 0) {
             nv_warning_msg("No frame buffer configurations found.");
-            glx_fbconfigs_available = FALSE;
+            ctk_glx->glx_fbconfigs_available = FALSE;
         }
     }
 
-    if (glx_fbconfigs_available) {
+    if (ctk_glx->glx_fbconfigs_available) {
         show_fbc_button = gtk_toggle_button_new_with_label(
                               "Show GLX Frame Buffer Configurations");
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_fbc_button), FALSE);
@@ -812,13 +810,13 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 
     /* EGL Configurations */
 
-    egl_fbconfigs_available = TRUE;
+    ctk_glx->egl_fbconfigs_available = TRUE;
     ret = NvCtrlGetVoidAttribute(ctrl_target,
                                  NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS,
                                  (void *)(&egl_fbconfig_attribs));
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to query list of EGL configurations.");
-        egl_fbconfigs_available = FALSE;
+        ctk_glx->egl_fbconfigs_available = FALSE;
     } else {
         num_fbconfigs = 0;
         if (egl_fbconfig_attribs) {
@@ -827,13 +825,13 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
             }
         }
 
-        if (egl_fbconfigs_available && num_fbconfigs == 0) {
+        if (ctk_glx->egl_fbconfigs_available && num_fbconfigs == 0) {
             nv_warning_msg("No EGL frame buffer configurations found.");
-            egl_fbconfigs_available = FALSE;
+            ctk_glx->egl_fbconfigs_available = FALSE;
         }
     }
 
-    if (egl_fbconfigs_available) {
+    if (ctk_glx->egl_fbconfigs_available) {
 
         show_egl_fbc_button = gtk_toggle_button_new_with_label(
                                   "Show EGL Frame Buffer Configurations");
@@ -926,8 +924,6 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     ReturnStatus ret;
 
-    gboolean use_egl = TRUE;
-
     char *direct_rendering  = NULL;
     char *glx_extensions    = NULL;
     char *server_vendor     = NULL;
@@ -960,81 +956,93 @@ void ctk_glx_probe_info(GtkWidget *widget)
         return;
     }
 
-
-    /* Get GLX information */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_DIRECT_RENDERING,
-                                   &direct_rendering);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_GLX_EXTENSIONS,
-                                   &glx_extensions);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+    ctk_glx->glx_available = TRUE;
+    ctk_glx->egl_available = TRUE;
 
 
-    /* Get Server GLX information */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_SERVER_VENDOR,
-                                   &server_vendor);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_SERVER_VERSION,
-                                   &server_version);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_SERVER_EXTENSIONS,
-                                   &server_extensions);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+    if (ctrl_target->targetTypeInfo->nvctrl == X_SCREEN_TARGET) {
+        /* Get GLX information */
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_DIRECT_RENDERING,
+                                       &direct_rendering);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_GLX_EXTENSIONS,
+                                       &glx_extensions);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
 
 
-    /* Get Client GLX information */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_CLIENT_VENDOR,
-                                   &client_vendor);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_CLIENT_VERSION,
-                                   &client_version);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS,
-                                   &client_extensions);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+        /* Get Server GLX information */
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_SERVER_VENDOR,
+                                       &server_vendor);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_SERVER_VERSION,
+                                       &server_version);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_SERVER_EXTENSIONS,
+                                       &server_extensions);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
 
 
-    /* Get OpenGL information */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_OPENGL_VENDOR,
-                                   &opengl_vendor);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_OPENGL_RENDERER,
-                                   &opengl_renderer);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_OPENGL_VERSION,
-                                   &opengl_version);
-    if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS,
-                                   &opengl_extensions);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+        /* Get Client GLX information */
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_CLIENT_VENDOR,
+                                       &client_vendor);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_CLIENT_VERSION,
+                                       &client_version);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS,
+                                       &client_extensions);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+
+
+        /* Get OpenGL information */
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_OPENGL_VENDOR,
+                                       &opengl_vendor);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_OPENGL_RENDERER,
+                                       &opengl_renderer);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_OPENGL_VERSION,
+                                       &opengl_version);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS,
+                                       &opengl_extensions);
+        if ( ret != NvCtrlSuccess ) { ctk_glx->glx_available = FALSE; }
+    } else {
+        ctk_glx->glx_available = FALSE;
+    }
 
 
     /* Get EGL information */
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_VENDOR,
                                    &egl_vendor);
-    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
+    if ( ret != NvCtrlSuccess ) { ctk_glx->egl_available = FALSE; }
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_VERSION,
                                    &egl_version);
-    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
+    if ( ret != NvCtrlSuccess ) { ctk_glx->egl_available = FALSE; }
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_EXTENSIONS,
                                    &egl_extensions);
-    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
+    if ( ret != NvCtrlSuccess ) { ctk_glx->egl_available = FALSE; }
 
+
+
+    if (!ctk_glx->glx_available && !ctk_glx->egl_available) {
+        goto done;
+    }
 
 
     /* Modify extension lists so they show only one name per line */
@@ -1059,128 +1067,131 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_widget_set_size_request(notebook, -1, 250);
     gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
 
-    /* Add (Shared) GLX information to widget */
-    notebook_label = gtk_label_new("GLX");
-    vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
-    scroll_win = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    if (ctk_glx->glx_available) {
 
-    table = gtk_table_new(2, 2, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0,
-                  0, 0, "Direct Rendering:",
-                  0, 0,  direct_rendering);
-    add_table_row(table, 1,
-                  0, 0, "GLX Extensions:",
-                  0, 0,  glx_extensions);
+        /* Add (Shared) GLX information to widget */
+        notebook_label = gtk_label_new("GLX");
+        vbox2 = gtk_vbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-    if (ctk_glx->show_fbc_button) {
-        GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(button_box), ctk_glx->show_fbc_button,
-                           FALSE, FALSE, 0);
+        table = gtk_table_new(2, 2, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        add_table_row(table, 0,
+                      0, 0, "Direct Rendering:",
+                      0, 0,  direct_rendering);
+        add_table_row(table, 1,
+                      0, 0, "GLX Extensions:",
+                      0, 0,  glx_extensions);
+
+        if (ctk_glx->show_fbc_button) {
+            GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(button_box), ctk_glx->show_fbc_button,
+                               FALSE, FALSE, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
+
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
+        gtk_widget_show(GTK_WIDGET(scroll_win));
+
+
+        /* Add server GLX information to widget */
+        notebook_label = gtk_label_new("Server GLX");
+        vbox2 = gtk_vbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+
+        table = gtk_table_new(3, 2, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        add_table_row(table, 0,
+                      0, 0, "Vendor:",
+                      0, 0, server_vendor);
+        add_table_row(table, 1,
+                      0, 0, "Version:",
+                      0, 0, server_version);
+        add_table_row(table, 2,
+                      0, 0, "Extensions:",
+                      0, 0, server_extensions);
+
+        gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
+
+
+        /* Add client GLX information to widget */
+        notebook_label = gtk_label_new("Client GLX");
+        vbox2 = gtk_vbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+
+        table = gtk_table_new(3, 2, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        add_table_row(table, 0,
+                      0, 0, "Vendor:",
+                      0, 0, client_vendor);
+        add_table_row(table, 1,
+                      0, 0, "Version:",
+                      0, 0, client_version);
+        add_table_row(table, 2,
+                      0, 0, "Extensions:",
+                      0, 0, client_extensions);
+
+        gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
+
+
+        /* Add OpenGL information to widget */
+        notebook_label = gtk_label_new("OpenGL");
+        vbox2 = gtk_vbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+
+        table = gtk_table_new(4, 2, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        add_table_row(table, 0,
+                      0, 0, "Vendor:",
+                      0, 0, opengl_vendor);
+        add_table_row(table, 1,
+                      0, 0, "Renderer:",
+                      0, 0, opengl_renderer);
+        add_table_row(table, 2,
+                      0, 0, "Version:",
+                      0, 0, opengl_version);
+        add_table_row(table, 3,
+                      0, 0, "Extensions:",
+                      0, 0, opengl_extensions);
+
+        gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
     }
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
-
-    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
-
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
-                             notebook_label);
-    gtk_widget_show(GTK_WIDGET(scroll_win));
-
-
-    /* Add server GLX information to widget */
-    notebook_label = gtk_label_new("Server GLX");
-    vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
-    scroll_win = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-
-    table = gtk_table_new(3, 2, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0,
-                  0, 0, "Vendor:",
-                  0, 0, server_vendor);
-    add_table_row(table, 1,
-                  0, 0, "Version:",
-                  0, 0, server_version);
-    add_table_row(table, 2,
-                  0, 0, "Extensions:",
-                  0, 0, server_extensions);
-
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
-
-    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
-                             notebook_label);
-
-
-    /* Add client GLX information to widget */
-    notebook_label = gtk_label_new("Client GLX");
-    vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
-    scroll_win = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-
-    table = gtk_table_new(3, 2, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0,
-                  0, 0, "Vendor:",
-                  0, 0, client_vendor);
-    add_table_row(table, 1,
-                  0, 0, "Version:",
-                  0, 0, client_version);
-    add_table_row(table, 2,
-                  0, 0, "Extensions:",
-                  0, 0, client_extensions);
-
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
-
-    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
-                             notebook_label);
-
-
-    /* Add OpenGL information to widget */
-    notebook_label = gtk_label_new("OpenGL");
-    vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
-    scroll_win = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-
-    table = gtk_table_new(4, 2, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0,
-                  0, 0, "Vendor:",
-                  0, 0, opengl_vendor);
-    add_table_row(table, 1,
-                  0, 0, "Renderer:",
-                  0, 0, opengl_renderer);
-    add_table_row(table, 2,
-                  0, 0, "Version:",
-                  0, 0, opengl_version);
-    add_table_row(table, 3,
-                  0, 0, "Extensions:",
-                  0, 0, opengl_extensions);
-
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
-
-    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
-                             notebook_label);
 
 
     /* Add EGL information to widget */
-    if (use_egl) {
+    if (ctk_glx->egl_available) {
         notebook_label = gtk_label_new("EGL");
         vbox2 = gtk_vbox_new(FALSE, 0);
         gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
@@ -1262,232 +1273,257 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "screen."
                   );
 
-    ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "%s", __show_fbc_help);
+    if (ctk_glx->glx_fbconfigs_available) {
+        ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
+        ctk_help_para(b, &i, "%s", __show_fbc_help);
+    }
 
-    ctk_help_heading(b, &i, "Direct Rendering");
-    ctk_help_para(b, &i,
-                  "This will tell you if direct rendering is available.  If "
-                  "direct rendering is available, then a program running on "
-                  "the same computer that the control panel is running on "
-                  "will be able to bypass the X Server and take advantage of "
-                  "faster rendering.  If direct rendering is not available, "
-                  "then indirect rendering will be used and all rendering "
-                  "will happen through the X Server."
-                  );
-    ctk_help_heading(b, &i, "GLX Extensions");
-    ctk_help_para(b, &i,
-                  "This is the list of GLX extensions that are supported by "
-                  "both the client (libraries) and server (GLX extension to "
-                  "the X Server)."
-                  );
+    if (ctk_glx->glx_available) {
 
-    ctk_help_heading(b, &i, "Server GLX Vendor String");
-    ctk_help_para(b, &i,
-                  "This is the vendor supplying the GLX extension running on "
-                  "the X Server."
-                  );
-    ctk_help_heading(b, &i, "Server GLX Version String");
-    ctk_help_para(b, &i,
-                  "This is the version of the GLX extension running on the X "
-                  "Server."
-                  );
-    ctk_help_heading(b, &i, "Server GLX Extensions");
-    ctk_help_para(b, &i,
-                  "This is the list of extensions supported by the GLX "
-                  "extension running on the X Server."
-                  );
+        ctk_help_heading(b, &i, "Direct Rendering");
+        ctk_help_para(b, &i,
+                      "This will tell you if direct rendering is available.  If "
+                      "direct rendering is available, then a program running on "
+                      "the same computer that the control panel is running on "
+                      "will be able to bypass the X Server and take advantage of "
+                      "faster rendering.  If direct rendering is not available, "
+                      "then indirect rendering will be used and all rendering "
+                      "will happen through the X Server."
+                      );
+        ctk_help_heading(b, &i, "GLX Extensions");
+        ctk_help_para(b, &i,
+                      "This is the list of GLX extensions that are supported by "
+                      "both the client (libraries) and server (GLX extension to "
+                      "the X Server)."
+                      );
 
-    ctk_help_heading(b, &i, "Client GLX Vendor String");
-    ctk_help_para(b, &i,
-                  "This is the vendor supplying the GLX libraries."
-                  );
-    ctk_help_heading(b, &i, "Client GLX Version String");
-    ctk_help_para(b, &i,
-                  "This is the version of the GLX libraries."
-                  );
-    ctk_help_heading(b, &i, "Client GLX Extensions");
-    ctk_help_para(b, &i,
-                  "This is the list of extensions supported by the GLX "
-                  "libraries."
-                  );
+        ctk_help_heading(b, &i, "Server GLX Vendor String");
+        ctk_help_para(b, &i,
+                      "This is the vendor supplying the GLX extension running on "
+                      "the X Server."
+                      );
+        ctk_help_heading(b, &i, "Server GLX Version String");
+        ctk_help_para(b, &i,
+                      "This is the version of the GLX extension running on the X "
+                      "Server."
+                      );
+        ctk_help_heading(b, &i, "Server GLX Extensions");
+        ctk_help_para(b, &i,
+                      "This is the list of extensions supported by the GLX "
+                      "extension running on the X Server."
+                      );
 
-    ctk_help_heading(b, &i, "OpenGL Vendor String");
-    ctk_help_para(b, &i,
-                  "This is the name of the vendor providing the OpenGL "
-                  "implementation."
-                 );
-    ctk_help_heading(b, &i, "OpenGL Renderer String");
-    ctk_help_para(b, &i,
-                  "This shows the details of the graphics card on which "
-                  "OpenGL is running."
-                 );
-    ctk_help_heading(b, &i, "OpenGL Version String");
-    ctk_help_para(b, &i,
-                  "This is the version of the OpenGL implementation."
-                 );
-    ctk_help_heading(b, &i, "OpenGL Extensions");
-    ctk_help_para(b, &i,
-                  "This is the list of OpenGL extensions that are supported "
-                  "by this driver."
-                 );
+        ctk_help_heading(b, &i, "Client GLX Vendor String");
+        ctk_help_para(b, &i,
+                      "This is the vendor supplying the GLX libraries."
+                      );
+        ctk_help_heading(b, &i, "Client GLX Version String");
+        ctk_help_para(b, &i,
+                      "This is the version of the GLX libraries."
+                      );
+        ctk_help_heading(b, &i, "Client GLX Extensions");
+        ctk_help_para(b, &i,
+                      "This is the list of extensions supported by the GLX "
+                      "libraries."
+                      );
 
-    ctk_help_heading(b, &i, "Show EGL Frame Buffer Configurations");
-    ctk_help_para(b, &i, "%s", __show_egl_fbc_help);
+        ctk_help_heading(b, &i, "OpenGL Vendor String");
+        ctk_help_para(b, &i,
+                      "This is the name of the vendor providing the OpenGL "
+                      "implementation."
+                     );
+        ctk_help_heading(b, &i, "OpenGL Renderer String");
+        ctk_help_para(b, &i,
+                      "This shows the details of the graphics card on which "
+                      "OpenGL is running."
+                     );
+        ctk_help_heading(b, &i, "OpenGL Version String");
+        ctk_help_para(b, &i,
+                      "This is the version of the OpenGL implementation."
+                     );
+        ctk_help_heading(b, &i, "OpenGL Extensions");
+        ctk_help_para(b, &i,
+                      "This is the list of OpenGL extensions that are supported "
+                      "by this driver."
+                     );
+    }
 
+    if (ctk_glx->egl_available) {
+        ctk_help_heading(b, &i, "EGL Vendor String");
+        ctk_help_para(b, &i,
+                      "This is the vendor supplying the EGL implementation."
+                     );
+        ctk_help_heading(b, &i, "EGL Version String");
+        ctk_help_para(b, &i,
+                      "This is the version of the EGL implementation."
+                     );
+        ctk_help_heading(b, &i, "EGL Extensions");
+        ctk_help_para(b, &i,
+                      "This is the list of EGL extensions that are supported "
+                      "by this driver."
+                     );
+    }
 
-    ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "This table lists the supported GLX frame buffer "
-                  "configurations for the display.");
-    ctk_help_para(b, &i,
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
+    if (ctk_glx->glx_fbconfigs_available) {
+        ctk_help_heading(b, &i, "Show EGL Frame Buffer Configurations");
+        ctk_help_para(b, &i, "%s", __show_egl_fbc_help);
 
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
+        ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
+        ctk_help_para(b, &i, "This table lists the supported GLX frame buffer "
+                      "configurations for the display.");
+        ctk_help_para(b, &i,
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
 
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n",
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
 
-                  __fid_help,
-                  __vid_help,
-                  __vt_help,
-                  __bfs_help,
-                  __lvl_help,
-                  __bf_help,
-                  __db_help,
-                  __st_help,
-                  __rs_help,
-                  __gs_help,
-                  __bs_help,
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n",
 
-                  __as_help,
-                  __aux_help,
-                  __dpt_help,
-                  __stn_help,
-                  __acr_help,
-                  __acg_help,
-                  __acb_help,
-                  __aca_help,
-                  __mvs_help,
-                  __mcs_help,
-                  __mb_help,
+                      __fid_help,
+                      __vid_help,
+                      __vt_help,
+                      __bfs_help,
+                      __lvl_help,
+                      __bf_help,
+                      __db_help,
+                      __st_help,
+                      __rs_help,
+                      __gs_help,
+                      __bs_help,
 
-                  __cav_help,
-                  __pbw_help,
-                  __pbh_help,
-                  __pbp_help,
-                  __trt_help,
-                  __trr_help,
-                  __trg_help,
-                  __trb_help,
-                  __tra_help,
-                  __tri_help
-                 );
-    ctk_help_heading(b, &i, "EGL Frame Buffer Configurations");
-    ctk_help_para(b, &i, "This table lists the supported EGL frame buffer "
-                  "configurations for the display.");
-    ctk_help_para(b, &i,
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
+                      __as_help,
+                      __aux_help,
+                      __dpt_help,
+                      __stn_help,
+                      __acr_help,
+                      __acg_help,
+                      __acb_help,
+                      __aca_help,
+                      __mvs_help,
+                      __mcs_help,
+                      __mb_help,
 
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
+                      __cav_help,
+                      __pbw_help,
+                      __pbh_help,
+                      __pbp_help,
+                      __trt_help,
+                      __trr_help,
+                      __trg_help,
+                      __trb_help,
+                      __tra_help,
+                      __tri_help
+                     );
+    }
 
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
+    if (ctk_glx->egl_fbconfigs_available) {
+        ctk_help_heading(b, &i, "EGL Frame Buffer Configurations");
+        ctk_help_para(b, &i, "This table lists the supported EGL frame buffer "
+                      "configurations for the display.");
+        ctk_help_para(b, &i,
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
 
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n"
-                  "\t%s\n\n",
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
 
-                  __egl_id_help,
-                  __egl_vid_help,
-                  __egl_nvt_help,
-                  __egl_bfs_help,
-                  __egl_lvl_help,
-                  __egl_cbt_help,
-                  __egl_rs_help,
-                  __egl_gs_help,
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
 
-                  __egl_bs_help,
-                  __egl_as_help,
-                  __egl_ams_help,
-                  __egl_lum_help,
-                  __egl_dpt_help,
-                  __egl_stn_help,
-                  __egl_bt_help,
-                  __egl_bta_help,
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n"
+                      "\t%s\n\n",
 
-                  __egl_cfm_help,
-                  __egl_spb_help,
-                  __egl_smp_help,
-                  __egl_cav_help,
-                  __egl_pbw_help,
-                  __egl_pbh_help,
-                  __egl_pbp_help,
-                  __egl_six_help,
+                      __egl_id_help,
+                      __egl_vid_help,
+                      __egl_nvt_help,
+                      __egl_bfs_help,
+                      __egl_lvl_help,
+                      __egl_cbt_help,
+                      __egl_rs_help,
+                      __egl_gs_help,
 
-                  __egl_sin_help,
-                  __egl_nrd_help,
-                  __egl_rdt_help,
-                  __egl_sur_help,
-                  __egl_tpt_help,
-                  __egl_trv_help,
-                  __egl_tgv_help,
-                  __egl_tbv_help
-                 );
+                      __egl_bs_help,
+                      __egl_as_help,
+                      __egl_ams_help,
+                      __egl_lum_help,
+                      __egl_dpt_help,
+                      __egl_stn_help,
+                      __egl_bt_help,
+                      __egl_bta_help,
 
-  ctk_help_finish(b);
+                      __egl_cfm_help,
+                      __egl_spb_help,
+                      __egl_smp_help,
+                      __egl_cav_help,
+                      __egl_pbw_help,
+                      __egl_pbh_help,
+                      __egl_pbp_help,
+                      __egl_six_help,
+
+                      __egl_sin_help,
+                      __egl_nrd_help,
+                      __egl_rdt_help,
+                      __egl_sur_help,
+                      __egl_tpt_help,
+                      __egl_trv_help,
+                      __egl_tgv_help,
+                      __egl_tbv_help
+                     );
+    }
+
+    ctk_help_finish(b);
 
     return b;
 

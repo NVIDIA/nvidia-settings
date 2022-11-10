@@ -98,6 +98,7 @@ gchar *ctk_widget_get_tooltip_text(GtkWidget *w);
 
 void ctk_widget_get_preferred_size(GtkWidget *w, GtkRequisition *r);
 GtkWidget *ctk_dialog_get_content_area(GtkDialog *d);
+GtkWidget *ctk_dialog_get_widget_for_response(GtkDialog *d, gint id);
 
 gdouble ctk_adjustment_get_page_increment(GtkAdjustment *a);
 gdouble ctk_adjustment_get_step_increment(GtkAdjustment *a);

@@ -67,8 +67,6 @@ SAMPLE_SOURCES        += nv-control-warpblend.c
 # build rules
 ##############################################################################
 
-.PHONY: all clean clobber install
-
 # define the rule to build each object file
 $(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
@@ -76,16 +74,19 @@ $(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src)
 define link_sample_from_object
   $$(OUTPUTDIR)/$(1:.c=): $$(call BUILD_OBJECT_LIST,$(1)) $$(LIBXNVCTRL)
 	$$(call quiet_cmd,LINK) $$(CFLAGS) $$(LDFLAGS) $$(BIN_LDFLAGS) -o $$@ $$< $$(LIBXNVCTRL) $$(LIBS)
-  all:: $$(OUTPUTDIR)/$(1:.c=)
+
+  .PHONY: all
+  all: $$(OUTPUTDIR)/$(1:.c=)
   SAMPLES += $$(OUTPUTDIR)/$(1:.c=)
 endef
 
 $(foreach sample,$(SAMPLE_SOURCES),$(eval $(call link_sample_from_object,$(sample))))
 
-
+.PHONY: clean clobber
 clean clobber:
 	rm -rf *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d $(SAMPLES) $(LIBXNVCTRL)
 
+.PHONY: install
 install:
 	@# don't install samples, this is just to satisfy the top-level
 	@# recursion rule

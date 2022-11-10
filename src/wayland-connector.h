@@ -3,6 +3,7 @@
 
 typedef struct _wayland_output_info {
     struct wl_output *output;
+    struct wl_display *display;
     struct _wayland_output_info *next;
 
     int name, version;
@@ -25,8 +26,14 @@ typedef struct _wayland_lib
     char *error_msg;
 
     wayland_output_info *(*fn_get_wayland_output_info)(void);
+    void *(*fn_get_wayland_display)(void);
 } wayland_lib;
 
 wayland_output_info *get_wayland_output_info(void);
+void *get_wayland_display(void);
+
+int wconn_wayland_handle_loaded(void);
+void *wconn_get_wayland_display(void);
+void *wconn_get_wayland_output_info(void);
 
 #endif

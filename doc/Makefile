@@ -67,16 +67,18 @@ HOST_CFLAGS += $(common_cflags)
 # build rules
 ##############################################################################
 
-.PNONY: all install MANPAGE_install clean clobber
-
+.PHONY: all
 all: $(MANPAGE)
 
+.PHONY: install
 install: MANPAGE_install
 
+.PHONY: MANPAGE_install
 MANPAGE_install: $(MANPAGE)
 	$(MKDIR) $(MANDIR)
 	$(INSTALL) $(INSTALL_DOC_ARGS) $< $(MANDIR)/$(notdir $<)
 
+.PHONY: clean clobber
 clean clobber:
 	rm -rf $(MANPAGE) *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
 		$(GEN_MANPAGE_OPTS) $(OPTIONS_1_INC)
@@ -88,6 +90,7 @@ clean clobber:
 
 AUTO_TEXT = ".\\\" WARNING: THIS FILE IS AUTO-GENERATED!  Edit $< instead."
 
+.PHONY: doc
 doc: $(MANPAGE)
 
 GEN_MANPAGE_OPTS_SRC  = ../src/gen-manpage-opts.c
