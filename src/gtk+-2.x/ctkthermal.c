@@ -473,7 +473,9 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
     
     /* Sync the gui to be able to modify the fan speed */
 
-    sync_gui_to_modify_cooler_level(ctk_thermal);
+    if (!ctk_thermal->cooler_control_enabled) {
+        sync_gui_to_modify_cooler_level(ctk_thermal);
+    }
 
     /* Update the status bar */
 
@@ -497,6 +499,7 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
     CtrlTarget *ctrl_target = ctk_thermal->ctrl_target;
     gboolean enabled;
     int value;
+    ReturnStatus ret;
 
     /* Get enabled state */
 
@@ -506,12 +509,20 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
 
     /* Update the server */
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
-                       value);
+    ret = NvCtrlSetAttribute(ctrl_target, NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
+                             value);
+
+    if (ret != NvCtrlSuccess) {
+        ctk_config_statusbar_message(ctk_thermal->ctk_config,
+                                     "Failed to Enable GPU Fan Settings!");
+        return;
+    }
+    /* Store the current state */
+    ctk_thermal->cooler_control_enabled = enabled;
 
     /* Update the GUI */
 
-    cooler_control_state_update_gui(ctk_thermal);
+    sync_gui_to_modify_cooler_level(ctk_thermal);
 
 } /* cooler_control_state_toggled() */
 
@@ -676,7 +687,7 @@ static void reset_button_clicked(GtkWidget *widget, gpointer user_data)
     
     /* Update GUI to reflect current values */
     
-    cooler_control_state_update_gui(ctk_thermal);
+    sync_gui_to_modify_cooler_level(ctk_thermal);
 
     /* Disable the apply button */
 

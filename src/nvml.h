@@ -1285,6 +1285,14 @@ typedef unsigned int nvmlDeviceArchitecture_t;
 typedef unsigned int nvmlBusType_t;
 
 /**
+ * Device Fan control policy
+ */
+#define NVML_FAN_POLICY_TEMPERATURE_CONTINOUS_SW 0
+#define NVML_FAN_POLICY_MANUAL                   1
+
+typedef unsigned int nvmlFanControlPolicy_t;
+
+/**
  * Device Power Source
  */
 #define NVML_POWER_SOURCE_AC      0x00000000
@@ -3764,6 +3772,34 @@ nvmlReturn_t DECLDIR nvmlDeviceGetFanSpeed(nvmlDevice_t device, unsigned int *sp
 nvmlReturn_t DECLDIR nvmlDeviceGetFanSpeed_v2(nvmlDevice_t device, unsigned int fan, unsigned int * speed);
 
 /**
+ * Retrieves the intended target speed of the device's specified fan.
+ *
+ * Normally, the driver dynamically adjusts the fan based on
+ * the needs of the GPU.  But when user set fan speed using nvmlDeviceSetFanSpeed_v2,
+ * the driver will attempt to make the fan achieve the setting in
+ * nvmlDeviceSetFanSpeed_v2.  The actual current speed of the fan
+ * is reported in nvmlDeviceGetFanSpeed_v2.
+ *
+ * For all discrete products with dedicated fans.
+ *
+ * The fan speed is expressed as a percentage of the product's maximum noise tolerance fan speed.
+ * This value may exceed 100% in certain cases.
+ *
+ * @param device                                The identifier of the target device
+ * @param fan                                   The index of the target fan, zero indexed.
+ * @param targetSpeed                           Reference in which to return the fan speed percentage
+ *
+ * @return
+ *        - \ref NVML_SUCCESS                   if \a speed has been set
+ *        - \ref NVML_ERROR_UNINITIALIZED       if the library has not been successfully initialized
+ *        - \ref NVML_ERROR_INVALID_ARGUMENT    if \a device is invalid, \a fan is not an acceptable index, or \a speed is NULL
+ *        - \ref NVML_ERROR_NOT_SUPPORTED       if the device does not have a fan or is newer than Maxwell
+ *        - \ref NVML_ERROR_GPU_IS_LOST         if the target GPU has fallen off the bus or is otherwise inaccessible
+ *        - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetTargetFanSpeed(nvmlDevice_t device, unsigned int fan, unsigned int *targetSpeed);
+
+/**
  * Sets the speed of the fan control policy to default.
  *
  * For all cuda-capable discrete products with fans
@@ -3800,6 +3836,50 @@ nvmlReturn_t DECLDIR nvmlDeviceSetDefaultFanSpeed_v2(nvmlDevice_t device, unsign
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetMinMaxFanSpeed(nvmlDevice_t device, unsigned int * minSpeed,
                                                  unsigned int * maxSpeed);
+
+/**
+ * Gets current fan control policy.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * For all cuda-capable discrete products with fans
+ *
+ * device                               The identifier of the target \a device
+ * policy                               Reference in which to return the fan control \a policy
+ *
+ * return
+ *         NVML_SUCCESS                 if \a policy has been populated
+ *         NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a policy is null or the \a fan given doesn't reference
+ *                                            a fan that exists.
+ *         NVML_ERROR_NOT_SUPPORTED     if the \a device is older than Maxwell
+ *         NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetFanControlPolicy_v2(nvmlDevice_t device, unsigned int fan,
+                                                      nvmlFanControlPolicy_t *policy);
+
+/**
+ * Sets current fan control policy.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Requires privileged user.
+ *
+ * For all cuda-capable discrete products with fans
+ *
+ * device                               The identifier of the target \a device
+ * policy                               The fan control \a policy to set
+ *
+ * return
+ *         NVML_SUCCESS                 if \a policy has been set
+ *         NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a policy is null or the \a fan given doesn't reference
+ *                                            a fan that exists.
+ *         NVML_ERROR_NOT_SUPPORTED     if the \a device is older than Maxwell
+ *         NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceSetFanControlPolicy(nvmlDevice_t device, unsigned int fan,
+                                                   nvmlFanControlPolicy_t policy);
 
 /**
  * Retrieves the number of fans on the device.
