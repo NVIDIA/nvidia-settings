@@ -95,8 +95,8 @@ extern "C" {
 /**
  * NVML API versioning support
  */
-#define NVML_API_VERSION            11
-#define NVML_API_VERSION_STR        "11"
+#define NVML_API_VERSION            12
+#define NVML_API_VERSION_STR        "12"
 /**
  * Defining NVML_NO_UNVERSIONED_FUNC_DEFS will disable "auto upgrading" of APIs.
  * e.g. the user will have to call nvmlInit_v2 instead of nvmlInit. Enable this
@@ -1201,115 +1201,6 @@ typedef struct nvmlVgpuProcessUtilizationSample_st
     unsigned int        encUtil;                                    //!< Encoder Util Value
     unsigned int        decUtil;                                    //!< Decoder Util Value
 } nvmlVgpuProcessUtilizationSample_t;
-
-/**
- * vGPU scheduler policies
- */
-#define NVML_VGPU_SCHEDULER_POLICY_UNKNOWN      0
-#define NVML_VGPU_SCHEDULER_POLICY_BEST_EFFORT  1
-#define NVML_VGPU_SCHEDULER_POLICY_EQUAL_SHARE  2
-#define NVML_VGPU_SCHEDULER_POLICY_FIXED_SHARE  3
-
-#define NVML_SUPPORTED_VGPU_SCHEDULER_POLICY_COUNT 3
-
-#define NVML_SCHEDULER_SW_MAX_LOG_ENTRIES 200
-
-/**
- * Union to represent the vGPU Scheduler Parameters
- */
-typedef union
-{
-    struct
-    {
-        unsigned int    avgFactor;          //!< Average factor in compensating the timeslice for Adaptive Round Robin mode
-        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise
-    } vgpuSchedDataWithARR;
-
-    struct
-    {
-        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise
-    } vgpuSchedData;
-
-} nvmlVgpuSchedulerParams_t;
-
-/**
- * Structure to store the state and logs of a software runlist
- */
-typedef struct nvmlVgpuSchedulerLogEntries_st
-{
-    unsigned long long          timestamp;                  //!< Timestamp in ns when this software runlist was preeempted
-    unsigned long long          timeRunTotal;               //!< Total time in ns this software runlist has run
-    unsigned long long          timeRun;                    //!< Time in ns this software runlist ran before preemption
-    unsigned int                swRunlistId;                //!< Software runlist Id
-    unsigned long long          targetTimeSlice;            //!< The actual timeslice after deduction
-    unsigned long long          cumulativePreemptionTime;   //!< Preemption time in ns for this SW runlist
-} nvmlVgpuSchedulerLogEntry_t;
-
-/**
- * Structure to store a vGPU software scheduler log
- */
-typedef struct nvmlVgpuSchedulerLog_st
-{
-    unsigned int                engineId;                                       //!< Engine whose software runlist log entries are fetched
-    unsigned int                schedulerPolicy;                                //!< Scheduler policy
-    unsigned int                isEnabledARR;                                   //!< Flag to check Adaptive Round Robin scheduler mode
-    nvmlVgpuSchedulerParams_t   schedulerParams;
-    unsigned int                entriesCount;                                   //!< Count of log entries fetched
-    nvmlVgpuSchedulerLogEntry_t logEntries[NVML_SCHEDULER_SW_MAX_LOG_ENTRIES];
-} nvmlVgpuSchedulerLog_t;
-
-/**
- * Structure to store the vGPU scheduler state
- */
-typedef struct nvmlVgpuSchedulerGetState_st
-{
-    unsigned int                schedulerPolicy;    //!< Scheduler policy
-    unsigned int                isEnabledARR;       //!< Flag to check Adaptive Round Robin scheduler mode
-    nvmlVgpuSchedulerParams_t   schedulerParams;
-} nvmlVgpuSchedulerGetState_t;
-
-/**
- * Union to represent the vGPU Scheduler set Parameters
- */
-typedef union
-{
-    struct
-    {
-        unsigned int    avgFactor;          //!< Average factor in compensating the timeslice for Adaptive Round Robin mode
-        unsigned int    frequency;          //!< Frequency for Adaptive Round Robin mode
-    } vgpuSchedDataWithARR;
-
-    struct
-    {
-        unsigned int    timeslice;          //!< The timeslice in ms(milliseconds) for each software run list as configured, or the default value otherwise
-    } vgpuSchedData;
-
-} nvmlVgpuSchedulerSetParams_t;
-
-/**
- * Structure to set the vGPU scheduler state
- */
-typedef struct nvmlVgpuSchedulerSetState_st
-{
-    unsigned int                    schedulerPolicy;    //!< Scheduler policy
-    unsigned int                    enableARRMode;      //!< Flag to enable/disable Adaptive Round Robin scheduler
-    nvmlVgpuSchedulerSetParams_t    schedulerParams;
-} nvmlVgpuSchedulerSetState_t;
-
-/**
- * Structure to store the vGPU scheduler capabilities
- */
-typedef struct nvmlVgpuSchedulerCapabilities_st
-{
-    unsigned int        supportedSchedulers[NVML_SUPPORTED_VGPU_SCHEDULER_POLICY_COUNT]; //!< List the supported vGPU schedulers on the device
-    unsigned int        maxTimeslice;                                                    //!< Maximum timeslice value in ns
-    unsigned int        minTimeslice;                                                    //!< Minimum timeslice value in ns
-    unsigned int        isArrModeSupported;                                              //!< Flag to check Adaptive Round Robin mode enabled/disabled.
-    unsigned int        maxFrequencyForARR;                                              //!< Maximum frequency for Adaptive Round Robin mode
-    unsigned int        minFrequencyForARR;                                              //!< Minimum frequency for Adaptive Round Robin mode
-    unsigned int        maxAvgFactorForARR;                                              //!< Maximum averaging factor for Adaptive Round Robin mode
-    unsigned int        minAvgFactorForARR;                                              //!< Minimum averaging factor for Adaptive Round Robin mode
-} nvmlVgpuSchedulerCapabilities_t;
 
 /**
  * Structure to store the vGPU license expiry details
@@ -7793,90 +7684,6 @@ nvmlReturn_t DECLDIR nvmlGetVgpuCompatibility(nvmlVgpuMetadata_t *vgpuMetadata, 
  *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetPgpuMetadataString(nvmlDevice_t device, char *pgpuMetadata, unsigned int *bufferSize);
-
-/**
- * Returns the vGPU Software scheduler logs.
- * \a pSchedulerLog points to a caller-allocated structure to contain the logs. The number of elements returned will
- * never exceed \a NVML_SCHEDULER_SW_MAX_LOG_ENTRIES.
- *
- * To get the entire logs, call the function atleast 5 times a second.
- *
- * For Pascal &tm; or newer fully supported devices.
- *
- * @param device                The identifier of the target \a device
- * @param pSchedulerLog         Reference in which \a pSchedulerLog is written
- *
- * @return
- *         - \ref NVML_SUCCESS                   vGPU scheduler logs were successfully obtained
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a pSchedulerLog is NULL or \a device is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED       The API is not supported in current state or \a device not in vGPU host mode
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetVgpuSchedulerLog(nvmlDevice_t device, nvmlVgpuSchedulerLog_t *pSchedulerLog);
-
-/**
- * Returns the vGPU scheduler state.
- *
- * For Pascal &tm; or newer fully supported devices.
- *
- * @param device                The identifier of the target \a device
- * @param pSchedulerState       Reference in which \a pSchedulerState is returned
- *
- * @return
- *         - \ref NVML_SUCCESS                   vGPU scheduler state is successfully obtained
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a pSchedulerState is NULL or \a device is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED       The API is not supported in current state or \a device not in vGPU host mode
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetVgpuSchedulerState(nvmlDevice_t device, nvmlVgpuSchedulerGetState_t *pSchedulerState);
-
-/**
- * Sets the vGPU scheduler state.
- *
- * For Pascal &tm; or newer fully supported devices.
- *
- * The scheduler state change won’t persist across module load/unload.
- * Scheduler state and params will be allowed to set only when no VM is running.
- * In \a nvmlVgpuSchedulerSetState_t, IFF enableARRMode=1 then
- * provide avgFactorForARR and frequency as input. If enableARRMode is disabled
- * then provide timeslice as input.
- *
- * @param device                The identifier of the target \a device
- * @param pSchedulerState       vGPU \a pSchedulerState to set
- *
- * @return
- *         - \ref NVML_SUCCESS                  vGPU scheduler state has been successfully set
- *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a pSchedulerState is NULL or \a device is invalid
- *         - \ref NVML_ERROR_RESET_REQUIRED     if setting \a pSchedulerState failed with fatal error,
- *                                              reboot is required to overcome from this error.
- *         - \ref NVML_ERROR_NOT_SUPPORTED      The API is not supported in current state or \a device not in vGPU host mode
- *                                              or if any vGPU instance currently exists on the \a device
- *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceSetVgpuSchedulerState(nvmlDevice_t device, nvmlVgpuSchedulerSetState_t *pSchedulerState);
-
-/**
- * Returns the vGPU scheduler capabilities.
- * The list of supported vGPU schedulers returned in \a nvmlVgpuSchedulerCapabilities_t is from
- * the NVML_VGPU_SCHEDULER_POLICY_*. This list enumerates the supported scheduler policies
- * if the engine is Graphics type.
- * The other values in \a nvmlVgpuSchedulerCapabilities_t are also applicable if the engine is
- * Graphics type. For other engine types, it is BEST EFFORT policy.
- * If ARR is supported and enabled, scheduling frequency and averaging factor are applicable
- * else timeSlice is applicable.
- *
- * For Pascal &tm; or newer fully supported devices.
- *
- * @param device                The identifier of the target \a device
- * @param pCapabilities         Reference in which \a pCapabilities is written
- *
- * @return
- *         - \ref NVML_SUCCESS                   vGPU scheduler capabilities were successfully obtained
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a pCapabilities is NULL or \a device is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED       The API is not supported in current state or \a device not in vGPU host mode
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetVgpuSchedulerCapabilities(nvmlDevice_t device, nvmlVgpuSchedulerCapabilities_t *pCapabilities);
 
 /*
  * Virtual GPU (vGPU) version
