@@ -51,6 +51,8 @@ getNvmlHandleConst(const NvCtrlAttributePrivateHandle *h)
 
 static void printNvmlError(nvmlReturn_t error)
 {
+    static int function_not_found_message_shown;
+
     switch (error) {
         case NVML_SUCCESS:
             break;
@@ -107,8 +109,11 @@ static void printNvmlError(nvmlReturn_t error)
             break;
 
         case NVML_ERROR_FUNCTION_NOT_FOUND:
-            nv_error_msg("Local version of NVML doesn't implement this "
-                         "function");
+            if (!function_not_found_message_shown) {
+                nv_warning_msg("Attempted to use functionality that is not "
+                               "implemented in the local version of NVML.");
+                function_not_found_message_shown = NV_TRUE;
+            }
             break;
 
         case NVML_ERROR_CORRUPTED_INFOROM:
@@ -175,10 +180,24 @@ static void UnloadNvml(NvCtrlNvmlAttributes *nvml)
 }
 
 /*
+ * Stub implementation for optional functions which are not present in the
+ * current driver version's NVML library.
+ */
+static nvmlReturn_t NvmlStubFunction (void)
+{
+    return NVML_ERROR_FUNCTION_NOT_FOUND;
+}
+
+/*
  * Load and initializes the NVML library.
  */
 static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
 {
+    enum {
+        _OPTIONAL,
+        _REQUIRED
+    };
+
     nvmlReturn_t ret;
 
     nvml->lib.handle = dlopen("libnvidia-ml.so.1", RTLD_LAZY);
@@ -187,57 +206,59 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
         goto fail;
     }
 
-#define GET_SYMBOL_REQUIRED(_proc, _name)             \
-    nvml->lib._proc = dlsym(nvml->lib.handle, _name); \
-    if (nvml->lib._proc == NULL) {                    \
-        goto fail;                                    \
+#define GET_SYMBOL(_required, _proc, _name)             \
+    nvml->lib._proc = dlsym(nvml->lib.handle, _name);   \
+    if (nvml->lib._proc == NULL) {                      \
+        if (_required) {                                \
+            goto fail;                                  \
+        } else {                                        \
+            nvml->lib._proc = (void*) NvmlStubFunction; \
+        }                                               \
     }
 
-    GET_SYMBOL_REQUIRED(init,                           "nvmlInit");
-    GET_SYMBOL_REQUIRED(shutdown,                       "nvmlShutdown");
-    GET_SYMBOL_REQUIRED(deviceGetHandleByIndex,         "nvmlDeviceGetHandleByIndex");
-    GET_SYMBOL_REQUIRED(deviceGetUUID,                  "nvmlDeviceGetUUID");
-    GET_SYMBOL_REQUIRED(deviceGetCount,                 "nvmlDeviceGetCount");
-    GET_SYMBOL_REQUIRED(deviceGetTemperature,           "nvmlDeviceGetTemperature");
-    GET_SYMBOL_REQUIRED(deviceGetName,                  "nvmlDeviceGetName");
-    GET_SYMBOL_REQUIRED(deviceGetVbiosVersion,          "nvmlDeviceGetVbiosVersion");
-    GET_SYMBOL_REQUIRED(deviceGetMemoryInfo,            "nvmlDeviceGetMemoryInfo");
-    GET_SYMBOL_REQUIRED(deviceGetPciInfo,               "nvmlDeviceGetPciInfo");
-    GET_SYMBOL_REQUIRED(deviceGetCurrPcieLinkWidth,     "nvmlDeviceGetCurrPcieLinkWidth");
-    GET_SYMBOL_REQUIRED(deviceGetMaxPcieLinkGeneration, "nvmlDeviceGetMaxPcieLinkGeneration");
-    GET_SYMBOL_REQUIRED(deviceGetMaxPcieLinkWidth,      "nvmlDeviceGetMaxPcieLinkWidth");
-    GET_SYMBOL_REQUIRED(deviceGetVirtualizationMode,    "nvmlDeviceGetVirtualizationMode");
-    GET_SYMBOL_REQUIRED(deviceGetUtilizationRates,      "nvmlDeviceGetUtilizationRates");
-    GET_SYMBOL_REQUIRED(deviceGetTemperatureThreshold,  "nvmlDeviceGetTemperatureThreshold");
-    GET_SYMBOL_REQUIRED(deviceGetFanSpeed_v2,           "nvmlDeviceGetFanSpeed_v2");
-    GET_SYMBOL_REQUIRED(systemGetDriverVersion,         "nvmlSystemGetDriverVersion");
-    GET_SYMBOL_REQUIRED(deviceGetEccMode,               "nvmlDeviceGetEccMode");
-    GET_SYMBOL_REQUIRED(deviceSetEccMode,               "nvmlDeviceSetEccMode");
-    GET_SYMBOL_REQUIRED(deviceGetTotalEccErrors,        "nvmlDeviceGetTotalEccErrors");
-    GET_SYMBOL_REQUIRED(deviceClearEccErrorCounts,      "nvmlDeviceClearEccErrorCounts");
-    GET_SYMBOL_REQUIRED(systemGetNVMLVersion,           "nvmlSystemGetNVMLVersion");
-    GET_SYMBOL_REQUIRED(deviceGetMemoryErrorCounter,    "nvmlDeviceGetMemoryErrorCounter");
-    GET_SYMBOL_REQUIRED(deviceGetNumGpuCores,           "nvmlDeviceGetNumGpuCores");
-    GET_SYMBOL_REQUIRED(deviceGetMemoryBusWidth,        "nvmlDeviceGetMemoryBusWidth");
-    GET_SYMBOL_REQUIRED(deviceGetIrqNum,                "nvmlDeviceGetIrqNum");
-    GET_SYMBOL_REQUIRED(deviceGetPowerSource,           "nvmlDeviceGetPowerSource");
-    GET_SYMBOL_REQUIRED(deviceGetNumFans,               "nvmlDeviceGetNumFans");
-    GET_SYMBOL_REQUIRED(deviceGetDefaultEccMode,        "nvmlDeviceGetDefaultEccMode");
-#undef GET_SYMBOL_REQUIRED
+    GET_SYMBOL(_REQUIRED, init,                           "nvmlInit");
+    GET_SYMBOL(_REQUIRED, shutdown,                       "nvmlShutdown");
+    GET_SYMBOL(_REQUIRED, deviceGetHandleByIndex,         "nvmlDeviceGetHandleByIndex");
+    GET_SYMBOL(_REQUIRED, deviceGetUUID,                  "nvmlDeviceGetUUID");
+    GET_SYMBOL(_REQUIRED, deviceGetCount,                 "nvmlDeviceGetCount");
+    GET_SYMBOL(_REQUIRED, deviceGetTemperature,           "nvmlDeviceGetTemperature");
+    GET_SYMBOL(_REQUIRED, deviceGetName,                  "nvmlDeviceGetName");
+    GET_SYMBOL(_REQUIRED, deviceGetVbiosVersion,          "nvmlDeviceGetVbiosVersion");
+    GET_SYMBOL(_REQUIRED, deviceGetMemoryInfo,            "nvmlDeviceGetMemoryInfo");
+    GET_SYMBOL(_REQUIRED, deviceGetPciInfo,               "nvmlDeviceGetPciInfo");
+    GET_SYMBOL(_REQUIRED, deviceGetCurrPcieLinkWidth,     "nvmlDeviceGetCurrPcieLinkWidth");
+    GET_SYMBOL(_REQUIRED, deviceGetMaxPcieLinkGeneration, "nvmlDeviceGetMaxPcieLinkGeneration");
+    GET_SYMBOL(_REQUIRED, deviceGetMaxPcieLinkWidth,      "nvmlDeviceGetMaxPcieLinkWidth");
+    GET_SYMBOL(_REQUIRED, deviceGetVirtualizationMode,    "nvmlDeviceGetVirtualizationMode");
+    GET_SYMBOL(_REQUIRED, deviceGetUtilizationRates,      "nvmlDeviceGetUtilizationRates");
+    GET_SYMBOL(_REQUIRED, deviceGetTemperatureThreshold,  "nvmlDeviceGetTemperatureThreshold");
+    GET_SYMBOL(_REQUIRED, deviceGetFanSpeed_v2,           "nvmlDeviceGetFanSpeed_v2");
+    GET_SYMBOL(_REQUIRED, systemGetDriverVersion,         "nvmlSystemGetDriverVersion");
+    GET_SYMBOL(_REQUIRED, deviceGetEccMode,               "nvmlDeviceGetEccMode");
+    GET_SYMBOL(_REQUIRED, deviceSetEccMode,               "nvmlDeviceSetEccMode");
+    GET_SYMBOL(_REQUIRED, deviceGetTotalEccErrors,        "nvmlDeviceGetTotalEccErrors");
+    GET_SYMBOL(_REQUIRED, deviceClearEccErrorCounts,      "nvmlDeviceClearEccErrorCounts");
+    GET_SYMBOL(_REQUIRED, systemGetNVMLVersion,           "nvmlSystemGetNVMLVersion");
+    GET_SYMBOL(_REQUIRED, deviceGetMemoryErrorCounter,    "nvmlDeviceGetMemoryErrorCounter");
+    GET_SYMBOL(_REQUIRED, deviceGetNumGpuCores,           "nvmlDeviceGetNumGpuCores");
+    GET_SYMBOL(_REQUIRED, deviceGetMemoryBusWidth,        "nvmlDeviceGetMemoryBusWidth");
+    GET_SYMBOL(_REQUIRED, deviceGetIrqNum,                "nvmlDeviceGetIrqNum");
+    GET_SYMBOL(_REQUIRED, deviceGetPowerSource,           "nvmlDeviceGetPowerSource");
+    GET_SYMBOL(_REQUIRED, deviceGetNumFans,               "nvmlDeviceGetNumFans");
+    GET_SYMBOL(_REQUIRED, deviceGetDefaultEccMode,        "nvmlDeviceGetDefaultEccMode");
     
 /* Do not fail with older drivers */
-#define GET_SYMBOL_OPTIONAL(_proc, _name)             \
-    nvml->lib._proc = dlsym(nvml->lib.handle, _name); 
     
-    GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures_v4");
-    GET_SYMBOL_OPTIONAL(deviceGetGspFirmwareMode,        "nvmlDeviceGetGspFirmwareMode");
-    GET_SYMBOL_OPTIONAL(deviceGetMemoryInfo_v2,          "nvmlDeviceGetMemoryInfo_v2");
-    GET_SYMBOL_OPTIONAL(deviceSetFanSpeed_v2,            "nvmlDeviceSetFanSpeed_v2");
-    GET_SYMBOL_OPTIONAL(deviceGetTargetFanSpeed,         "nvmlDeviceGetTargetFanSpeed");
-    GET_SYMBOL_OPTIONAL(deviceGetMinMaxFanSpeed,         "nvmlDeviceGetMinMaxFanSpeed");
-    GET_SYMBOL_OPTIONAL(deviceSetFanControlPolicy,       "nvmlDeviceSetFanControlPolicy");
-    GET_SYMBOL_OPTIONAL(deviceGetFanControlPolicy_v2,    "nvmlDeviceGetFanControlPolicy_v2");
-#undef GET_SYMBOL_OPTIONAL
+    GET_SYMBOL(_OPTIONAL, deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures_v4");
+    GET_SYMBOL(_OPTIONAL, deviceGetGspFirmwareMode,        "nvmlDeviceGetGspFirmwareMode");
+    GET_SYMBOL(_OPTIONAL, deviceGetMemoryInfo_v2,          "nvmlDeviceGetMemoryInfo_v2");
+    GET_SYMBOL(_OPTIONAL, deviceSetFanSpeed_v2,            "nvmlDeviceSetFanSpeed_v2");
+    GET_SYMBOL(_OPTIONAL, deviceGetTargetFanSpeed,         "nvmlDeviceGetTargetFanSpeed");
+    GET_SYMBOL(_OPTIONAL, deviceGetMinMaxFanSpeed,         "nvmlDeviceGetMinMaxFanSpeed");
+    GET_SYMBOL(_OPTIONAL, deviceSetFanControlPolicy,       "nvmlDeviceSetFanControlPolicy");
+    GET_SYMBOL(_OPTIONAL, deviceGetFanControlPolicy_v2,    "nvmlDeviceGetFanControlPolicy_v2");
+
+#undef GET_SYMBOL
 
     ret = nvml->lib.init();
 
@@ -1008,6 +1029,11 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
                 {
                     nvmlFanControlPolicy_t policy;
+
+                    /* Return early if GPU has no fan */
+                    if (nvml->coolerCount == 0) {
+                        return NvCtrlNotSupported;
+                    }
 
                     /* Get cooler control policy */
                     ret = nvml->lib.deviceGetFanControlPolicy_v2(device, 0, &policy);

@@ -452,6 +452,7 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
     ReturnStatus ret;
     int value;
     gboolean enabled;
+    gboolean current_status;
 
 
     /* We need to check the cooler control state status with 
@@ -469,7 +470,18 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
     }
 
     ctk_thermal->cooler_control_enabled = enabled;
-    
+
+    /* Update checkbox to reflect correct cooler control state */
+
+    current_status = gtk_toggle_button_get_active(
+                       GTK_TOGGLE_BUTTON(ctk_thermal->enable_checkbox));
+
+    if (enabled != current_status) {
+        /* Update the gui sensitivity */
+
+        sync_gui_sensitivity(ctk_thermal);
+    }
+
     /* Sync the gui to be able to modify the fan speed */
 
     if (!ctk_thermal->cooler_control_enabled) {
