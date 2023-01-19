@@ -257,6 +257,7 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, deviceGetMinMaxFanSpeed,         "nvmlDeviceGetMinMaxFanSpeed");
     GET_SYMBOL(_OPTIONAL, deviceSetFanControlPolicy,       "nvmlDeviceSetFanControlPolicy");
     GET_SYMBOL(_OPTIONAL, deviceGetFanControlPolicy_v2,    "nvmlDeviceGetFanControlPolicy_v2");
+    GET_SYMBOL(_OPTIONAL, deviceSetDefaultFanSpeed_v2,     "nvmlDeviceSetDefaultFanSpeed_v2");
 
 #undef GET_SYMBOL
 
@@ -1559,11 +1560,8 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
                 break;
 
             case NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT:
-                /*
-                 * XXX We'll eventually need to add support for this attributes
-                 *     through NVML
-                 */
-                return NvCtrlNotSupported;
+                ret = nvml->lib.deviceSetDefaultFanSpeed_v2(device, coolerId);
+                break;
 
             default:
                 /* Did we forget to handle a cooler integer attribute? */

@@ -202,6 +202,7 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetMinMaxFanSpeed)             (*deviceGetMinMaxFanSpeed);
         typeof(nvmlDeviceSetFanControlPolicy)           (*deviceSetFanControlPolicy);
         typeof(nvmlDeviceGetFanControlPolicy_v2)        (*deviceGetFanControlPolicy_v2);
+        typeof(nvmlDeviceSetDefaultFanSpeed_v2)         (*deviceSetDefaultFanSpeed_v2);
 
     } lib;
 
