@@ -1,3 +1,4 @@
+//sw/dev/gpu_drv/dev_a/drivers/ui/linux/src/gtk+-2.x/ctkdisplayconfig.c#205 - edit change 30492598 (text)
 /*
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
@@ -122,6 +123,7 @@ static gboolean force_layout_reset(gpointer user_data);
 static void user_changed_attributes(CtkDisplayConfig *ctk_object);
 static void update_forcecompositionpipeline_buttons(CtkDisplayConfig
                                                     *ctk_object);
+static void confirm_valid_screen_sizes(CtkDisplayConfig *ctk_object);
 
 static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
                                    Bool merge,
@@ -1067,6 +1069,8 @@ static void user_changed_attributes(CtkDisplayConfig *ctk_object)
         ctk_object->forced_reset_allowed = FALSE;
     }
 
+    confirm_valid_screen_sizes(ctk_object);
+
 } /* user_changed_attributes() */
 
 
@@ -1281,6 +1285,86 @@ static void screen_size_changed(GdkScreen *screen,
 
 
 
+/*** clear_layout_warning() ******************************************
+ *
+ * Hide and clear the string from the layout warning label.
+ *
+ **/
+
+static void clear_layout_warning(CtkDisplayConfig *ctk_object)
+{
+    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_layout_warning), "");
+    gtk_widget_hide(ctk_object->lbl_layout_warning);
+}
+
+
+
+/*** update_layout_warning() *****************************************
+ *
+ * Set the given string to the layout warning text and show the label.
+ *
+ **/
+
+static void update_layout_warning(CtkDisplayConfig *ctk_object, const char* msg)
+{
+
+    if (msg && msg[0] != '\0') {
+        gtk_label_set_text(GTK_LABEL(ctk_object->lbl_layout_warning), msg);
+        gtk_widget_show(ctk_object->lbl_layout_warning);
+    } else {
+        clear_layout_warning(ctk_object);
+    }
+}
+
+
+
+/** confirm_valid_screen_sizes() *************************************
+ *
+ * Check that the dimensions of all screens are less than the maximum allowed
+ * sizes. Otherwise, show a layout warning to the user.
+ *
+ **/
+static void confirm_valid_screen_sizes(CtkDisplayConfig *ctk_object)
+{
+    nvScreenPtr screen;
+    GdkRectangle *dim;
+
+    char *t_str = NULL;
+    char *str = NULL;
+
+    for (screen = ctk_object->layout->screens;
+         screen;
+         screen = screen->next_in_layout) {
+        char *old_str;
+
+        if (screen->cur_metamode) {
+            dim = &(screen->cur_metamode->dim);
+        } else {
+            dim = &(screen->dim);
+        }
+
+        if (dim->width > screen->max_width ||
+            dim->height > screen->max_height) {
+
+            t_str = g_strdup_printf("Screen-%d exceeds maximum dimensions.",
+                                    screen->scrnum);
+            if (str == NULL) {
+                str = t_str;
+            } else {
+                old_str = str;
+                str = nvstrcat(str, "\n", t_str, NULL);
+                free(old_str);
+                free(t_str);
+            }
+        }
+    }
+
+    update_layout_warning(ctk_object, str);
+    free(str);
+}
+
+
+
 /** update_gui() *****************************************************
  *
  * Sync state of all widgets to reflect current configuration
@@ -1295,6 +1379,7 @@ static void update_gui(CtkDisplayConfig *ctk_object)
     setup_selected_item_dropdown(ctk_object);
     update_selected_page(ctk_object);
     setup_layout_frame(ctk_object);
+    confirm_valid_screen_sizes(ctk_object);
 
 } /* update_gui() */
 
@@ -1431,6 +1516,10 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     g_signal_connect(G_OBJECT(screen), "size-changed",
                      G_CALLBACK(screen_size_changed),
                      (gpointer) ctk_object);
+
+    /* Layout Warning label */
+    ctk_object->lbl_layout_warning = gtk_label_new("");
+    gtk_label_set_line_wrap(GTK_LABEL(ctk_object->lbl_layout_warning), 1);
 
     /* Mosaic button */
     ctk_object->chk_mosaic_enabled =
@@ -1917,6 +2006,10 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_container_add(GTK_CONTAINER(vbox), hbox);
         vbox2 = gtk_vbox_new(FALSE, 5);
         gtk_container_add(GTK_CONTAINER(hbox), vbox2);
+
+        /* Layout Warning label */
+        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->lbl_layout_warning,
+                           FALSE, FALSE, 0);
 
         /* Mosaic checkbox */
         gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_mosaic_enabled,
@@ -5910,15 +6003,25 @@ static void do_enable_display_on_xscreen(CtkDisplayConfig *ctk_object,
 
         nvDisplayPtr other;
         nvModePtr rightmost = NULL;
+        nvModePtr bottommost = NULL;
+        int new_w = 0, new_h = 0;
 
 
-        /* Get the right-most mode of the metamode */
+        /*
+         * Get the right-most mode of the metamode or, in case right-side
+         * placement would be over the max screen width, the bottom-most
+         * left-aligned mode.
+         */
         for (other = screen->displays; other; other = other->next_in_screen) {
             for (mode = other->modes; mode; mode = mode->next) {
                 if (!rightmost ||
                     ((mode->pan.x + mode->pan.width) >
                      (rightmost->pan.x + rightmost->pan.width))) {
                     rightmost = mode;
+                }
+                if (!bottommost ||
+                    (mode->pan.x == 0 && mode->pan.y > bottommost->pan.y)) {
+                    bottommost = mode;
                 }
             }
         }
@@ -5935,8 +6038,33 @@ static void do_enable_display_on_xscreen(CtkDisplayConfig *ctk_object,
         }
 
 
-        /* Position the new mode to the right of the right-most metamode */
         if (rightmost) {
+            new_w = rightmost->pan.x + rightmost->pan.width + mode->pan.width;
+        }
+
+        if (bottommost) {
+            new_h =
+                bottommost->pan.y + bottommost->pan.height + mode->pan.height;
+        }
+
+        if (new_w > screen->max_width) {
+            /*
+             * If adding the display to the right of the right-most display
+             * is too wide, add this screen below the bottom-left display.
+             */
+            if (new_h > screen->max_height) {
+                mode->position_type = CONF_ADJ_ABSOLUTE;
+                mode->relative_to = NULL;
+                mode->pan.x = 0;
+                mode->pan.y = 0;
+            } else {
+                mode->position_type = CONF_ADJ_BELOW;
+                mode->relative_to = bottommost->display;
+                mode->pan.x = bottommost->display->cur_mode->pan.x;
+                mode->pan.y = bottommost->display->cur_mode->pan.y;
+            }
+        } else if (rightmost) {
+            /* Position the new mode to the right of the right-most metamode */
             mode->position_type = CONF_ADJ_RIGHTOF;
             mode->relative_to = rightmost->display;
             mode->pan.x = rightmost->display->cur_mode->pan.x;
