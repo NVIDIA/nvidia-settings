@@ -341,6 +341,9 @@ const AttributeTableEntry attributeTable[] = {
     /* Dynamic Boost */
     { "DynamicBoostSupport",              NV_CTRL_DYNAMIC_BOOST_SUPPORT,                INT_ATTR, {0,0,0,1,0}, {},  "Returns whether the system supports Dynamic Boost." },
 
+    /* Framelock sync multiplier/divider */
+    { "FrameLockMultiplyDivideValue",     NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,      INT_ATTR, {1,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The value to multiply or divide the house sync input rate by before comparing it to this framelock board's internal sync rate." },
+    { "FrameLockMultiplyDivideMode",      NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE,       INT_ATTR, {1,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the house sync rate should be multiplied or divided." },
 };
 
 const int attributeTableLen = ARRAY_LEN(attributeTable);
@@ -351,7 +354,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DYNAMIC_BOOST_SUPPORT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

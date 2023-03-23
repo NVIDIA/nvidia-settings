@@ -3637,7 +3637,31 @@
  */
 #define NV_CTRL_DYNAMIC_BOOST_SUPPORT                           439
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DYNAMIC_BOOST_SUPPORT
+/*
+ * NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE - Controls the value to multiply or
+ * divide the house sync input timing by before comparing it to this board's
+ * framelock sync rate.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
+ */
+#define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE                 440 /* RW-F */
+
+/*
+ * NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE - Controls whether
+ * NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE should be used to multiply or
+ * divide the house sync input rate.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
+ */
+#define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE                  441 /* RW-F */
+#define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY           0
+#define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE             1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
 
 /**************************************************************************/
 

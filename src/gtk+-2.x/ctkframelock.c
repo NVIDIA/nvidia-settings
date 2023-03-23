@@ -112,6 +112,8 @@ const char *__FrameLockSignals[] =
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_POLARITY),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_VIDEO_MODE),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE),
     };
 
 typedef struct _nvListTreeRec      nvListTreeRec, *nvListTreePtr;
@@ -264,6 +266,11 @@ static gchar *syncEdgeStrings[] = {
     NULL
     };
 
+static gchar *muldivModeStrings[] = {
+    "Multiply", /* NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY */
+    "Divide", /* NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE */
+    NULL
+    };
 
 /* Tooltips */
 
@@ -295,6 +302,17 @@ static const char * __house_sync_mode_combo_help =
 "Sync device.  Output mode is only available on a Quadro Sync II device.  If "
 "an incoming house sync signal is present on the BNC connector, requesting "
 "Output mode will have no effect.";
+
+static const char * __muldiv_value_help =
+"The Sync Multiply/Divide Value allows you to set the number that the "
+"external house sync signal will be multiplied or divided by before comparing "
+"it to this board's internal sync rate.  For example, this may allow a "
+"Quadro Sync II board to sync displays at 120Hz from a 60Hz house sync input.";
+
+static const char * __muldiv_mode_combo_help =
+"The Sync Muldiply/Divide Mode allows you to control whether the external "
+"house sync signal will be multiplied or divided by the sync multiply/divide "
+"value before being interpreted by this Quadro Sync device.";
 
 static const char * __sync_interval_scale_help =
 "The Sync Interval allows you to set the number of incoming house sync "
@@ -363,6 +381,8 @@ static void toggle_client(GtkWidget *, gpointer);
 static void toggle_sync_enable(GtkWidget *, gpointer);
 static void toggle_test_link(GtkWidget *, gpointer);
 static void sync_interval_changed(GtkRange *, gpointer);
+static void changed_muldiv_mode(GtkComboBox *combo_box, gpointer user_data);
+static void muldiv_value_changed(GtkRange *range, gpointer user_data);
 static void changed_video_mode(GtkComboBox *, gpointer);
 static void toggle_detect_video_mode(GtkToggleButton *, gpointer);
 
@@ -2569,7 +2589,7 @@ static gboolean get_server_id(CtrlTarget *ctrl_target,
  */
 static void changed_house_sync_mode(GtkComboBox *combo_box, gpointer user_data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
+    CtkFramelock *ctk_framelock = user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry;
     gint house_sync_mode;
@@ -2594,7 +2614,7 @@ static void changed_house_sync_mode(GtkComboBox *combo_box, gpointer user_data)
         return;
     }
 
-    data = (nvFrameLockDataPtr) entry->data;
+    data = entry->data;
     ctrl_target = data->ctrl_target;
 
     NvCtrlSetAttribute(ctrl_target, NV_CTRL_USE_HOUSE_SYNC, house_sync_mode);
@@ -3021,9 +3041,9 @@ static void update_enable_confirm_text(CtkFramelock *ctk_framelock)
  * Timeout callback for reverting enabling of Frame Lock.
  *
  **/
-static gboolean do_enable_confirm_countdown(gpointer *user_data)
+static gboolean do_enable_confirm_countdown(gpointer user_data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *) user_data;
+    CtkFramelock *ctk_framelock = user_data;
 
     ctk_framelock->enable_confirm_countdown--;
     if (ctk_framelock->enable_confirm_countdown > 0) {
@@ -3047,7 +3067,7 @@ static gboolean do_enable_confirm_countdown(gpointer *user_data)
  *
  */
 static Bool confirm_serverless_framelock(CtkFramelock *ctk_framelock)
-{ 
+{
     gint result;
 
 
@@ -3086,7 +3106,7 @@ static Bool confirm_serverless_framelock(CtkFramelock *ctk_framelock)
  */
 static void toggle_sync_enable(GtkWidget *button, gpointer data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *) data;
+    CtkFramelock *ctk_framelock = data;
     guint val;
     gboolean enabled;
     gboolean something_enabled;
@@ -3125,7 +3145,7 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
 
     entry = get_gpu_server_entry(tree);
     if (enabled && entry && framelock_enabled) {
-        nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
+        nvGPUDataPtr data = entry->data;
         CtrlTarget *ctrl_target = data->ctrl_target;
         NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL,
@@ -3311,7 +3331,7 @@ static void toggle_test_link(GtkWidget *button, gpointer data)
  */
 static void sync_interval_changed(GtkRange *range, gpointer user_data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
+    CtkFramelock *ctk_framelock = user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
     nvFrameLockDataPtr data = NULL;
@@ -3321,10 +3341,33 @@ static void sync_interval_changed(GtkRange *range, gpointer user_data)
         return;
     }
 
-    data = (nvFrameLockDataPtr)(entry->data);
+    data = entry->data;
 
     NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                        interval);
+}
+
+/*
+ * muldiv_value_changed() - callback function for when the user changes the
+ * house sync multiply/divide value.
+ */
+static void muldiv_value_changed(GtkRange *range, gpointer user_data)
+{
+    CtkFramelock *ctk_framelock = user_data;
+    nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
+    nvListEntryPtr entry = get_framelock_server_entry(tree);
+    nvFrameLockDataPtr data = NULL;
+    gint muldiv = gtk_range_get_value(range);
+
+    if (!entry) {
+        return;
+    }
+
+    data = entry->data;
+
+    NvCtrlSetAttribute(data->ctrl_target,
+                       NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,
+                       muldiv);
 }
 
 
@@ -3343,6 +3386,20 @@ static gchar *format_sync_interval(GtkScale *scale, gdouble arg1,
 }
 
 
+/*
+ * format_sync_muldiv() - callback for the "format-value" signal from
+ * the sync multiply/divide value; return a string describing the current value
+ * of the house sync multiplier/divider.
+ */
+static gchar *format_sync_muldiv(GtkScale *scale, gdouble arg1,
+                                   gpointer user_data)
+{
+    gint val = (gint)arg1;
+
+    return g_strdup_printf("%d", val);
+}
+
+
 /** changed_sync_edge() **********************************************
  *
  * Callback function for when the user changes a frame lock device's
@@ -3351,7 +3408,7 @@ static gchar *format_sync_interval(GtkScale *scale, gdouble arg1,
  */
 static void changed_sync_edge(GtkComboBox *combo_box, gpointer user_data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
+    CtkFramelock *ctk_framelock = user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
     nvFrameLockDataPtr data;
@@ -3363,11 +3420,37 @@ static void changed_sync_edge(GtkComboBox *combo_box, gpointer user_data)
         return;
     }
 
-    data = (nvFrameLockDataPtr) entry->data;
+    data = entry->data;
 
     NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_POLARITY, edge);
 }
 
+
+/** changed_muldiv_mode() **********************************************
+ *
+ * Callback function for when the user changes a frame lock device's
+ * house sync multiply/divide mode.
+ *
+ */
+static void changed_muldiv_mode(GtkComboBox *combo_box, gpointer user_data)
+{
+    CtkFramelock *ctk_framelock = user_data;
+    nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
+    nvListEntryPtr entry = get_framelock_server_entry(tree);
+    nvFrameLockDataPtr data;
+
+    gint mode = gtk_combo_box_get_active(combo_box);
+
+    if (!entry ||
+        (mode < NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY) ||
+        (mode > NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE)) {
+        return;
+    }
+
+    data = entry->data;
+
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE, mode);
+}
 
 
 /** changed_video_mode() *********************************************
@@ -3378,7 +3461,7 @@ static void changed_sync_edge(GtkComboBox *combo_box, gpointer user_data)
  */
 static void changed_video_mode(GtkComboBox *combo_box, gpointer user_data)
 {
-    CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
+    CtkFramelock *ctk_framelock = user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
     nvFrameLockDataPtr data;
@@ -3388,7 +3471,7 @@ static void changed_video_mode(GtkComboBox *combo_box, gpointer user_data)
         return;
     }
 
-    data = (nvFrameLockDataPtr) entry->data;
+    data = entry->data;
 
     NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_VIDEO_MODE, mode);
 }
@@ -4043,19 +4126,6 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
 
         /* Update GUI to reflect server settings */
 
-        g_signal_handlers_block_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_scale),
-             G_CALLBACK(sync_interval_changed),
-             (gpointer) ctk_framelock);
-
-        gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
-                            sync_interval);
-
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_scale),
-             G_CALLBACK(sync_interval_changed),
-             (gpointer) ctk_framelock);
-
         if (sync_edge < NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE)
             sync_edge = NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE;
         if (sync_edge > NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES)
@@ -4088,6 +4158,68 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
             } else {
                 gtk_widget_set_sensitive(ctk_framelock->sync_edge_combo, True);
             }
+        }
+
+        if (ctk_framelock->muldiv_supported) {
+            gint muldiv_mode, muldiv_value;
+            NvCtrlGetAttribute(server_data->ctrl_target,
+                               NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE,
+                               &muldiv_mode);
+            NvCtrlGetAttribute(server_data->ctrl_target,
+                               NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,
+                               &muldiv_value);
+
+            if (muldiv_mode < NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY)
+                muldiv_mode = NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY;
+            if (muldiv_mode > NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE)
+                muldiv_mode = NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE;
+
+            g_signal_handlers_block_by_func
+                 (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo)),
+                  G_CALLBACK(changed_muldiv_mode),
+                  (gpointer) ctk_framelock);
+
+            gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo),
+                                     muldiv_mode);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo)),
+                 G_CALLBACK(changed_muldiv_mode),
+                 (gpointer) ctk_framelock);
+
+            g_signal_handlers_block_by_func
+                (G_OBJECT(ctk_framelock->muldiv_value_scale),
+                 G_CALLBACK(muldiv_value_changed),
+                 (gpointer) ctk_framelock);
+
+            gtk_range_set_value(GTK_RANGE(ctk_framelock->muldiv_value_scale),
+                                muldiv_value);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(ctk_framelock->muldiv_value_scale),
+                 G_CALLBACK(muldiv_value_changed),
+                 (gpointer) ctk_framelock);
+
+            if (house_sync_mode != NV_CTRL_USE_HOUSE_SYNC_INPUT) {
+                gtk_widget_set_sensitive(ctk_framelock->muldiv_mode_combo, False);
+                gtk_widget_set_sensitive(ctk_framelock->muldiv_value_scale, False);
+            } else {
+                gtk_widget_set_sensitive(ctk_framelock->muldiv_mode_combo, True);
+                gtk_widget_set_sensitive(ctk_framelock->muldiv_value_scale, True);
+            }
+        } else {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(ctk_framelock->sync_interval_scale),
+                 G_CALLBACK(sync_interval_changed),
+                 (gpointer) ctk_framelock);
+
+            gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
+                                sync_interval);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(ctk_framelock->sync_interval_scale),
+                 G_CALLBACK(sync_interval_changed),
+                 (gpointer) ctk_framelock);
         }
 
         if (house_format < NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE)
@@ -4486,6 +4618,7 @@ static void framelock_state_received(GObject *object,
         get_framelock_server_entry(entry->tree);
 
     gint sync_edge;
+    gint muldiv_mode;
     gint house_sync_mode;
     gint house_format;
 
@@ -4526,18 +4659,60 @@ static void framelock_state_received(GObject *object,
         break;
 
     case NV_CTRL_FRAMELOCK_SYNC_INTERVAL:
-        g_signal_handlers_block_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_scale),
-             G_CALLBACK(sync_interval_changed),
-             (gpointer) ctk_framelock);
+        if (!ctk_framelock->muldiv_supported) {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(ctk_framelock->sync_interval_scale),
+                 G_CALLBACK(sync_interval_changed),
+                 (gpointer) ctk_framelock);
 
-        gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
-                            event->int_attr.value);
+            gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
+                                event->int_attr.value);
 
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_scale),
-             G_CALLBACK(sync_interval_changed),
-             (gpointer) ctk_framelock);
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(ctk_framelock->sync_interval_scale),
+                 G_CALLBACK(sync_interval_changed),
+                 (gpointer) ctk_framelock);
+        }
+        break;
+
+    case NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE:
+        if (ctk_framelock->muldiv_supported) {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(ctk_framelock->muldiv_value_scale),
+                 G_CALLBACK(muldiv_value_changed),
+                 (gpointer) ctk_framelock);
+
+            gtk_range_set_value(GTK_RANGE(ctk_framelock->muldiv_value_scale),
+                                event->int_attr.value);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(ctk_framelock->muldiv_value_scale),
+                 G_CALLBACK(muldiv_value_changed),
+                 (gpointer) ctk_framelock);
+        }
+        break;
+
+    case NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE:
+        if (ctk_framelock->muldiv_supported) {
+            muldiv_mode = event->int_attr.value;
+            if (muldiv_mode < NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY)
+                muldiv_mode = NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY;
+            if (muldiv_mode > NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE)
+                muldiv_mode = NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE;
+
+            g_signal_handlers_block_by_func
+                 (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo)),
+                  G_CALLBACK(changed_muldiv_mode),
+                  (gpointer) ctk_framelock);
+
+            gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo),
+                                     muldiv_mode);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->muldiv_mode_combo)),
+                 G_CALLBACK(changed_muldiv_mode),
+                 (gpointer) ctk_framelock);
+        }
         break;
 
     case NV_CTRL_FRAMELOCK_POLARITY:
@@ -4771,6 +4946,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     ctk_framelock->video_mode_read_only = TRUE;
     ctk_framelock->house_sync_output_supported = FALSE;
     ctk_framelock->house_sync_output_warning_dlg_shown = FALSE;
+    ctk_framelock->muldiv_supported = FALSE;
 
     /* create the watch cursor */
 
@@ -4937,6 +5113,21 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     ctk_framelock->sync_edge_combo = combo_box;
 
 
+    combo_box = ctk_combo_box_text_new();
+    ctk_combo_box_text_append_text(combo_box,
+         muldivModeStrings[NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY]);
+    ctk_combo_box_text_append_text(combo_box,
+         muldivModeStrings[NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE]);
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box), 0);
+
+    g_signal_connect(G_OBJECT(GTK_COMBO_BOX(combo_box)),
+                     "changed", G_CALLBACK(changed_muldiv_mode),
+                     (gpointer) ctk_framelock);
+    ctk_config_set_tooltip(ctk_config, combo_box,
+                           __muldiv_mode_combo_help);
+    ctk_framelock->muldiv_mode_combo = combo_box;
+
     /* Cache images */
 
     ctk_framelock->led_grey_pixbuf = CTK_LOAD_PIXBUF(led_grey);
@@ -5055,8 +5246,81 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     ctk_framelock->house_sync_vbox = padding;
     gtk_box_pack_start(GTK_BOX(vbox), padding, FALSE, FALSE, 0);
 
-    /* add the house sync interval */
-    {
+    /* add the house sync multiply/divide mode if supported */
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
+                                        NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE,
+                                        &valid);
+    if (ret == NvCtrlSuccess) {
+        GtkWidget *frame2 = gtk_frame_new(NULL);
+        hbox = gtk_hbox_new(FALSE, 5);
+        label = gtk_label_new("Sync Multiply/Divide Mode:");
+
+        ctk_framelock->muldiv_supported = TRUE;
+        ctk_framelock->muldiv_mode_frame = frame2;
+
+        gtk_box_pack_start(GTK_BOX(padding), frame2, FALSE, FALSE, 0);
+        gtk_container_add(GTK_CONTAINER(frame2), hbox);
+
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->muldiv_mode_combo,
+                           FALSE, FALSE, 5);
+
+        /* add the house sync multiply/divide value slider if supported */
+        ret = NvCtrlGetValidAttributeValues(ctrl_target,
+                                            NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,
+                                            &valid);
+
+        /* if multiply/divide mode is supported, multiply/divide value should
+         * be supported as well */
+        if (ret != NvCtrlSuccess) {
+            return NULL;
+        }
+
+        frame2 = gtk_frame_new(NULL);
+
+        if (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_RANGE) {
+            return NULL;
+        }
+
+        if (NvCtrlSuccess !=
+            NvCtrlGetAttribute(ctrl_target,
+                               NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,
+                               &val)) {
+            return NULL;
+        }
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        label = gtk_label_new("Sync Multiply/Divide Value:");
+
+        adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, valid.range.min,
+                                                       valid.range.max,
+                                                       1, 1, 0));
+        scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
+
+        gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
+        gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
+        gtk_scale_set_digits(GTK_SCALE(scale), 0);
+
+        g_signal_connect(G_OBJECT(scale), "format-value",
+                         G_CALLBACK(format_sync_muldiv),
+                         (gpointer) ctk_framelock);
+        g_signal_connect(G_OBJECT(scale), "value-changed",
+                         G_CALLBACK(muldiv_value_changed),
+                         (gpointer) ctk_framelock);
+        ctk_config_set_tooltip(ctk_config, scale, __muldiv_value_help);
+
+        ctk_framelock->muldiv_value_frame = frame2;
+        ctk_framelock->muldiv_value_scale = scale;
+
+        gtk_box_pack_start(GTK_BOX(padding), frame2, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox), scale, TRUE, TRUE, 5);
+        gtk_container_add(GTK_CONTAINER(frame2), hbox);
+
+    } else {
+        /* House sync interval is deprecated in favor of house sync
+         * multiply/divide mode */
         GtkWidget *frame2 = gtk_frame_new(NULL);
 
         ret = NvCtrlGetValidAttributeValues(ctrl_target,
@@ -5092,6 +5356,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
 
         gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
         gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
+        gtk_scale_set_digits(GTK_SCALE(scale), 0);
 
         g_signal_connect(G_OBJECT(scale), "format-value",
                          G_CALLBACK(format_sync_interval),
@@ -5937,6 +6202,8 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                 int sync_interval;
                 int sync_edge;
                 int video_mode;
+                int muldiv_mode;
+                int muldiv_value;
 
                 NvCtrlGetAttribute(ctrl_target,
                                    NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
@@ -5947,10 +6214,18 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                 NvCtrlGetAttribute(ctrl_target,
                                    NV_CTRL_FRAMELOCK_VIDEO_MODE,
                                    &video_mode);
+                NvCtrlGetAttribute(ctrl_target,
+                                   NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE,
+                                   &muldiv_mode);
+                NvCtrlGetAttribute(ctrl_target,
+                                   NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,
+                                   &muldiv_value);
 
                 __ADD_ATTR(NV_CTRL_FRAMELOCK_SYNC_INTERVAL, sync_interval);
                 __ADD_ATTR(NV_CTRL_FRAMELOCK_POLARITY, sync_edge);
                 __ADD_ATTR(NV_CTRL_FRAMELOCK_VIDEO_MODE, video_mode);
+                __ADD_ATTR(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE, muldiv_mode);
+                __ADD_ATTR(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE, muldiv_value);
             }
 
             free(display_name);

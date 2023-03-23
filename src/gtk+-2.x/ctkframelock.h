@@ -80,6 +80,10 @@ struct _CtkFramelock
     GtkWidget             *sync_interval_scale;
     GtkWidget             *sync_edge_frame;
     GtkWidget             *sync_edge_combo;
+    GtkWidget             *muldiv_mode_frame;
+    GtkWidget             *muldiv_mode_combo;
+    GtkWidget             *muldiv_value_frame;
+    GtkWidget             *muldiv_value_scale;
     GtkWidget             *video_mode_frame;
     GtkWidget             *video_mode_widget;
     GtkWidget             *video_mode_detect;
@@ -89,6 +93,7 @@ struct _CtkFramelock
     gboolean               video_mode_read_only;
     gboolean               house_sync_output_supported;
     gboolean               house_sync_output_warning_dlg_shown;
+    gboolean               muldiv_supported;
 
     /* Dialogs */
     GtkWidget             *warn_dialog;

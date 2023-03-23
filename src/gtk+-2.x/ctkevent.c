@@ -295,6 +295,8 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
     MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_ENABLED);
     MAKE_SIGNAL(NV_CTRL_PLATFORM_POWER_MODE);
     MAKE_SIGNAL(NV_CTRL_MUX_AUTO_SWITCH);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE);
 #undef MAKE_SIGNAL
 
     /*
@@ -304,7 +306,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DYNAMIC_BOOST_SUPPORT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
 #warning "There are attributes that do not emit signals!"
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2022 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -2059,7 +2059,7 @@ typedef struct nvmlEncoderSessionInfo_st
  */
 typedef enum nvmlFBCSessionType_enum
 {
-    NVML_FBC_SESSION_TYPE_UNKNOWN = 0,     //!< Unknwon
+    NVML_FBC_SESSION_TYPE_UNKNOWN = 0,     //!< Unknown
     NVML_FBC_SESSION_TYPE_TOSYS,           //!< ToSys
     NVML_FBC_SESSION_TYPE_CUDA,            //!< Cuda
     NVML_FBC_SESSION_TYPE_VID,             //!< Vid
@@ -4711,10 +4711,10 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned in
  * Retrieves information about active encoder sessions on a target device.
  *
  * An array of active encoder sessions is returned in the caller-supplied buffer pointed at by \a sessionInfos. The
- * array elememt count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
+ * array element count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
  * written to the buffer.
  *
- * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * If the supplied buffer is not large enough to accommodate the active session array, the function returns
  * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
  * To query the number of active encoder sessions, call this function with *sessionCount = 0.  The code will return
  * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
@@ -4763,7 +4763,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetDecoderUtilization(nvmlDevice_t device, unsign
 * For Maxwell &tm; or newer fully supported devices.
 *
 * @param device                            The identifier of the target device
-* @param fbcStats                          Reference to nvmlFBCStats_t structure contianing NvFBC stats
+* @param fbcStats                          Reference to nvmlFBCStats_t structure containing NvFBC stats
 *
 * @return
 *         - \ref NVML_SUCCESS                  if \a fbcStats is fetched
@@ -4781,7 +4781,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetFBCStats(nvmlDevice_t device, nvmlFBCStats_t *
 * array element count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
 * written to the buffer.
 *
-* If the supplied buffer is not large enough to accomodate the active session array, the function returns
+* If the supplied buffer is not large enough to accommodate the active session array, the function returns
 * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlFBCSessionInfo_t array required in \a sessionCount.
 * To query the number of active FBC sessions, call this function with *sessionCount = 0.  The code will return
 * NVML_SUCCESS with number of active FBC sessions updated in *sessionCount.
@@ -5420,7 +5420,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetRetiredPages(nvmlDevice_t device, nvmlPageReti
  * The address information provided from this API is the hardware address of the page that was retired.  Note
  * that this does not match the virtual address used in CUDA, but will match the address information in XID 63
  *
- * \note nvmlDeviceGetRetiredPages_v2 adds an additional timestamps paramter to return the time of each page's
+ * \note nvmlDeviceGetRetiredPages_v2 adds an additional timestamps parameter to return the time of each page's
  *       retirement.
  *
  * For Kepler &tm; or newer fully supported devices.
@@ -5757,7 +5757,7 @@ typedef enum nvmlClockLimitId_enum {
  * Set clocks that device will lock to.
  *
  * Sets the clocks that the device will be running at to the value in the range of minGpuClockMHz to maxGpuClockMHz.
- * Setting this will supercede application clock values and take effect regardless if a cuda app is running.
+ * Setting this will supersede application clock values and take effect regardless if a cuda app is running.
  * See /ref nvmlDeviceSetApplicationsClocks
  *
  * Can be used as a setting to request constant performance.
@@ -6874,7 +6874,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuCapabilities(nvmlDevice_t device, nvmlDevi
  * pointed at by \a vgpuTypeIds. The element count of nvmlVgpuTypeId_t array is passed in \a vgpuCount, and \a vgpuCount
  * is used to return the number of vGPU types written to the buffer.
  *
- * If the supplied buffer is not large enough to accomodate the vGPU type array, the function returns
+ * If the supplied buffer is not large enough to accommodate the vGPU type array, the function returns
  * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlVgpuTypeId_t array required in \a vgpuCount.
  * To query the number of vGPU types supported for the GPU, call this function with *vgpuCount = 0.
  * The code will return NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if no vGPU types are supported.
@@ -6903,9 +6903,9 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned i
  * can concurrently run on a device.  For example, if only one vGPU type is allowed at a time on a device, then the creatable
  * list will be restricted to whatever vGPU type is already running on the device.
  *
- * If the supplied buffer is not large enough to accomodate the vGPU type array, the function returns
+ * If the supplied buffer is not large enough to accommodate the vGPU type array, the function returns
  * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlVgpuTypeId_t array required in \a vgpuCount.
- * To query the number of vGPU types createable for the GPU, call this function with *vgpuCount = 0.
+ * To query the number of vGPU types that can be created for the GPU, call this function with *vgpuCount = 0.
  * The code will return NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if no vGPU types are creatable.
  *
  * @param device                   The identifier of the target device
@@ -6985,7 +6985,7 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetGpuInstanceProfileId(nvmlVgpuTypeId_t vgpuTy
  *
  * @param vgpuTypeId               Handle to vGPU type
  * @param deviceID                 Device ID and vendor ID of the device contained in single 32 bit value
- * @param subsystemID              Subsytem ID and subsytem vendor ID of the device contained in single 32 bit value
+ * @param subsystemID              Subsystem ID and subsystem vendor ID of the device contained in single 32 bit value
  *
  * @return
  *         - \ref NVML_SUCCESS                 successful completion
@@ -7124,10 +7124,10 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetMaxInstancesPerVm(nvmlVgpuTypeId_t vgpuTypeI
  * Retrieve the active vGPU instances on a device.
  *
  * An array of active vGPU instances is returned in the caller-supplied buffer pointed at by \a vgpuInstances. The
- * array elememt count is passed in \a vgpuCount, and \a vgpuCount is used to return the number of vGPU instances
+ * array element count is passed in \a vgpuCount, and \a vgpuCount is used to return the number of vGPU instances
  * written to the buffer.
  *
- * If the supplied buffer is not large enough to accomodate the vGPU instance array, the function returns
+ * If the supplied buffer is not large enough to accommodate the vGPU instance array, the function returns
  * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlVgpuInstance_t array required in \a vgpuCount.
  * To query the number of active vGPU instances, call this function with *vgpuCount = 0.  The code will return
  * NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if no vGPU Types are supported.
@@ -7328,7 +7328,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEccMode(nvmlVgpuInstance_t vgpuInstance,
  * @param encoderCapacity          Reference to an unsigned int for the encoder capacity
  *
  * @return
- *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been retrived
+ *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been retrieved
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a encoderQueryType is invalid
  *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
@@ -7381,7 +7381,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderStats(nvmlVgpuInstance_t vgpuInst
  * array element count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
  * written to the buffer.
  *
- * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * If the supplied buffer is not large enough to accommodate the active session array, the function returns
  * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
  * To query the number of active encoder sessions, call this function with *sessionCount = 0. The code will return
  * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
@@ -7411,7 +7411,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderSessions(nvmlVgpuInstance_t vgpuI
 * For Maxwell &tm; or newer fully supported devices.
 *
 * @param vgpuInstance                      Identifier of the target vGPU instance
-* @param fbcStats                          Reference to nvmlFBCStats_t structure contianing NvFBC stats
+* @param fbcStats                          Reference to nvmlFBCStats_t structure containing NvFBC stats
 *
 * @return
 *         - \ref NVML_SUCCESS                  if \a fbcStats is fetched
@@ -7429,7 +7429,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFBCStats(nvmlVgpuInstance_t vgpuInstance
 * array element count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
 * written to the buffer.
 *
-* If the supplied buffer is not large enough to accomodate the active session array, the function returns
+* If the supplied buffer is not large enough to accommodate the active session array, the function returns
 * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlFBCSessionInfo_t array required in \a sessionCount.
 * To query the number of active FBC sessions, call this function with *sessionCount = 0.  The code will return
 * NVML_SUCCESS with number of active FBC sessions updated in *sessionCount.
@@ -7539,7 +7539,7 @@ typedef struct nvmlVgpuMetadata_st
     char                     guestDriverVersion[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE]; //!< Version of driver installed in guest
     char                     hostDriverVersion[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE];  //!< Version of driver installed in host
     unsigned int             reserved[6];                                                //!< Reserved for internal use
-    unsigned int             vgpuVirtualizationCaps;                                     //!< vGPU virtualizaion capabilities bitfileld
+    unsigned int             vgpuVirtualizationCaps;                                     //!< vGPU virtualization capabilities bitfield
     unsigned int             guestVgpuVersion;                                           //!< vGPU version of guest driver
     unsigned int             opaqueDataSize;                                             //!< Size of opaque data field in bytes
     char                     opaqueData[4];                                              //!< Opaque data
@@ -7553,7 +7553,7 @@ typedef struct nvmlVgpuPgpuMetadata_st
     unsigned int            version;                                                    //!< Current version of the structure
     unsigned int            revision;                                                   //!< Current revision of the structure
     char                    hostDriverVersion[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE];  //!< Host driver version
-    unsigned int            pgpuVirtualizationCaps;                                     //!< Pgpu virtualizaion capabilities bitfileld
+    unsigned int            pgpuVirtualizationCaps;                                     //!< Pgpu virtualization capabilities bitfield
     unsigned int            reserved[5];                                                //!< Reserved for internal use
     nvmlVgpuVersion_t       hostSupportedVgpuRange;                                     //!< vGPU version range supported by host driver
     unsigned int            opaqueDataSize;                                             //!< Size of opaque data field in bytes
@@ -7651,7 +7651,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuMetadata(nvmlDevice_t device, nvmlVgpuPgpu
  *
  * The caller passes in a buffer via \a compatibilityInfo, into which a compatibility information structure is written. The
  * structure defines the states in which the vGPU / VM may be booted on the physical GPU. If the vGPU / VM compatibility
- * with the physical GPU is limited, a limit code indicates the factor limiting compability.
+ * with the physical GPU is limited, a limit code indicates the factor limiting compatability.
  * (see \ref nvmlVgpuPgpuCompatibilityLimitCode_t for details).
  *
  * Note: vGPU compatibility does not take into account dynamic capacity conditions that may limit a system's ability to
