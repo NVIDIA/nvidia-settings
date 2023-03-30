@@ -1010,6 +1010,11 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 {
                     nvmlFanControlPolicy_t policy;
 
+                    /* Return early if GPU has no fan */
+                    if (nvml->coolerCount == 0) {
+                        return NvCtrlNotSupported;
+                    }
+
                     /* Get cooler control policy */
                     ret = nvml->lib.deviceGetFanControlPolicy_v2(device, 0, &policy);
                     res = (policy == NVML_FAN_POLICY_MANUAL) ?
