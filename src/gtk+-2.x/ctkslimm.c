@@ -1292,7 +1292,7 @@ static nvDisplayPtr setup_display(CtkMMDialog *ctk_mmdialog)
 void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
 {
     nvModeLineItemPtr iter;
-    char *id;
+    char *id = NULL;
 
     if (ctk_mmdialog == NULL) {
         return;
@@ -1300,6 +1300,7 @@ void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
 
     if (layout) {
         ctk_mmdialog->layout = layout;
+        ctk_mmdialog->cur_modeline = NULL;
     }
 
     parse_slimm_layout(ctk_mmdialog,
@@ -1307,12 +1308,14 @@ void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
                        &ctk_mmdialog->h_overlap_parsed,
                        &ctk_mmdialog->v_overlap_parsed);
 
-    id = g_strdup(ctk_mmdialog->cur_modeline->data.identifier);
+    if (ctk_mmdialog->cur_modeline) {
+        id = g_strdup(ctk_mmdialog->cur_modeline->data.identifier);
+    }
 
     setup_display(ctk_mmdialog);
 
     iter = ctk_mmdialog->modelines;
-    while (iter->next) {
+    while (id && iter->next) {
         if (strcmp(id, iter->modeline->data.identifier) == 0) {
             ctk_mmdialog->cur_modeline = iter->modeline;
             break;
