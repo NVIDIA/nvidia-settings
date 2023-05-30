@@ -289,6 +289,7 @@ const AttributeTableEntry attributeTable[] = {
     { "DisplayVRRMode",                   NV_CTRL_DISPLAY_VRR_MODE,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the specified display device is G-SYNC or G-SYNC Compatible." },
     { "DisplayVRRMinRefreshRate",         NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE,         INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The minimum refresh rate for the specified VRR display device." },
     { "DisplayVRREnabled",                NV_CTRL_DISPLAY_VRR_ENABLED,                  INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), then VRR was enabled on this display at modeset time." },
+    { "NumberOfHardwareHeadsUsed",        NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED,        INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of hardware heads currently used by this display device." },
 
     /* TV */
     { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },
@@ -341,6 +342,10 @@ const AttributeTableEntry attributeTable[] = {
     /* Dynamic Boost */
     { "DynamicBoostSupport",              NV_CTRL_DYNAMIC_BOOST_SUPPORT,                INT_ATTR, {0,0,0,1,0}, {},  "Returns whether the system supports Dynamic Boost." },
 
+    { "GpuGetPowerUsage",                 NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE,        INT_ATTR, {0,0,0,1,1}, {},  "Returns the current power usage of the GPU, in Watts." },
+    { "GPUMaxTGP",                        NV_CTRL_ATTR_NVML_GPU_MAX_TGP,                INT_ATTR, {0,0,0,1,1}, {},  "Returns the max TGP of the GPU, in Watts." },
+    { "GPUDefaultTGP",                    NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP,            INT_ATTR, {0,0,0,1,1}, {},  "Returns the default TGP of the GPU, in Watts." },
+
     /* Framelock sync multiplier/divider */
     { "FrameLockMultiplyDivideValue",     NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE,      INT_ATTR, {1,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The value to multiply or divide the house sync input rate by before comparing it to this framelock board's internal sync rate." },
     { "FrameLockMultiplyDivideMode",      NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE,       INT_ATTR, {1,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the house sync rate should be multiplied or divided." },
@@ -354,7 +359,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

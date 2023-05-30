@@ -297,6 +297,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
     MAKE_SIGNAL(NV_CTRL_MUX_AUTO_SWITCH);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_VALUE);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE);
+    MAKE_SIGNAL(NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED);
 #undef MAKE_SIGNAL
 
     /*
@@ -306,7 +307,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
 #warning "There are attributes that do not emit signals!"
 #endif
 

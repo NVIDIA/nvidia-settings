@@ -54,6 +54,11 @@ static void callback_link_changed(GObject *object, CtrlEvent *event,
 static void callback_refresh_rate_changed(GObject *object, CtrlEvent *event,
                                           gpointer user_data);
 
+static void callback_number_of_hardware_heads_used_changed(GObject *object,
+                                                           CtrlEvent *event,
+                                                           gpointer user_data);
+
+
 static gboolean update_guid_info(InfoEntry *entry);
 static gboolean update_tv_encoder_info(InfoEntry *entry);
 static gboolean update_chip_info(InfoEntry *entry);
@@ -65,11 +70,12 @@ static gboolean update_multistream_info(InfoEntry *entry);
 static gboolean update_audio_info(InfoEntry *entry);
 static gboolean update_vrr_type_info(InfoEntry *entry);
 static gboolean update_vrr_enabled_info(InfoEntry *entry);
+static gboolean update_number_of_hardware_heads_used_info(InfoEntry *entry);
 
 static gboolean register_link_events(InfoEntry *entry);
-static gboolean unregister_link_events(InfoEntry *entry);
+static gboolean unregister_events(InfoEntry *entry);
 static gboolean register_refresh_rate_events(InfoEntry *entry);
-static gboolean unregister_refresh_rate_events(InfoEntry *entry);
+static gboolean register_number_of_hardware_heads_used_events(InfoEntry *entry);
 
 static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      CtkConfig *ctk_config,
@@ -127,6 +133,12 @@ static const char * __vrr_enabled_help =
 "Server Display Configuration page, or by using the AllowGSYNCCompatible "
 "MetaMode attribute.";
 
+static const char * __number_of_hardware_heads_used_help =
+"Driving a display device normally requires a single hardware head.  In some "
+"rare cases, such as very high resolutions or refresh rates, multiple "
+"hardware heads are required.  This reports how many hardware "
+"heads are currently in use to drive the display device.";
+
 typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
 typedef struct {
@@ -171,14 +183,14 @@ static InfoEntryData __info_entry_data[] = {
         &__info_link_help,
         update_link_info,
         register_link_events,
-        unregister_link_events,
+        unregister_events,
     },
     {
         "Refresh Rate",
         &__refresh_rate_help,
         update_refresh_rate,
         register_refresh_rate_events,
-        unregister_refresh_rate_events,
+        unregister_events,
     },
     {
         "DisplayPort Connector Type",
@@ -214,6 +226,13 @@ static InfoEntryData __info_entry_data[] = {
         update_vrr_enabled_info,
         NULL,
         NULL,
+    },
+    {
+        "Number of Hardware Heads Used",
+        &__number_of_hardware_heads_used_help,
+        update_number_of_hardware_heads_used_info,
+        register_number_of_hardware_heads_used_events,
+        unregister_events,
     },
 };
 
@@ -960,6 +979,29 @@ static gboolean update_refresh_rate(InfoEntry *entry)
 
 
 
+static gboolean update_number_of_hardware_heads_used_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+    char str[16];
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED, &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    snprintf(str, sizeof(str), "%d", val);
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+
+    return TRUE;
+}
+
+
+
 /*
  * update_device_info() - (Re)Queries the static display device information.
  */
@@ -1050,7 +1092,7 @@ static gboolean register_link_events(InfoEntry *entry)
     return TRUE;
 }
 
-static gboolean unregister_link_events(InfoEntry *entry)
+static gboolean unregister_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
@@ -1075,17 +1117,14 @@ static gboolean register_refresh_rate_events(InfoEntry *entry)
     return TRUE;
 }
 
-static gboolean unregister_refresh_rate_events(InfoEntry *entry)
+static gboolean register_number_of_hardware_heads_used_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
-    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
-                                         G_SIGNAL_MATCH_DATA,
-                                         0, /* signal_id */
-                                         0, /* detail */
-                                         NULL, /* closure */
-                                         NULL, /* func */
-                                         (gpointer) entry);
+    g_signal_connect(G_OBJECT(ctk_object->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED),
+                     G_CALLBACK(callback_number_of_hardware_heads_used_changed),
+                     (gpointer) entry);
     return TRUE;
 }
 
@@ -1126,6 +1165,15 @@ static void callback_refresh_rate_changed(GObject *object,
     InfoEntry *entry = (InfoEntry *)user_data;
 
     update_refresh_rate(entry);
+}
+
+static void callback_number_of_hardware_heads_used_changed(GObject *object,
+                                                           CtrlEvent *event,
+                                                           gpointer user_data)
+{
+    InfoEntry *entry = (InfoEntry *)user_data;
+
+    update_number_of_hardware_heads_used_info(entry);
 }
 
 

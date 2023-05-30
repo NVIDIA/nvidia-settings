@@ -179,7 +179,7 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetMaxPcieLinkGeneration)      (*DeviceGetMaxPcieLinkGeneration);
         typeof(nvmlDeviceGetMaxPcieLinkWidth)           (*DeviceGetMaxPcieLinkWidth);
         typeof(nvmlDeviceGetVirtualizationMode)         (*DeviceGetVirtualizationMode);
-        typeof(nvmlDeviceGetGridLicensableFeatures_v4)  (*DeviceGetGridLicensableFeatures);
+        typeof(nvmlDeviceGetGridLicensableFeatures)     (*DeviceGetGridLicensableFeatures);
         typeof(nvmlDeviceGetGspFirmwareMode)            (*DeviceGetGspFirmwareMode);
         typeof(nvmlDeviceGetUtilizationRates)           (*DeviceGetUtilizationRates);
         typeof(nvmlDeviceGetTemperatureThreshold)       (*DeviceGetTemperatureThreshold);
@@ -203,6 +203,9 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceSetFanControlPolicy)           (*DeviceSetFanControlPolicy);
         typeof(nvmlDeviceGetFanControlPolicy_v2)        (*DeviceGetFanControlPolicy_v2);
         typeof(nvmlDeviceSetDefaultFanSpeed_v2)         (*DeviceSetDefaultFanSpeed_v2);
+        typeof(nvmlDeviceGetPowerUsage)                 (*DeviceGetPowerUsage);
+        typeof(nvmlDeviceGetPowerManagementDefaultLimit)     (*DeviceGetPowerManagementDefaultLimit);
+        typeof(nvmlDeviceGetPowerManagementLimitConstraints) (*DeviceGetPowerManagementLimitConstraints);
 
     } lib;
 

@@ -42,10 +42,10 @@ ifndef WAYLAND_AVAILABLE
 endif
 ifeq (1,$(WAYLAND_AVAILABLE))
   ifndef WAYLAND_CFLAGS
-    WAYLAND_CFLAGS := $(shell $(PKG_CONFIG) --cflags )
+    WAYLAND_CFLAGS := $(shell $(PKG_CONFIG) --cflags wayland-client)
   endif
   ifndef WAYLAND_LDFLAGS
-    WAYLAND_LDFLAGS := $(shell $(PKG_CONFIG) --libs )
+    WAYLAND_LDFLAGS := $(shell $(PKG_CONFIG) --libs wayland-client)
   endif
   BUILD_WAYLANDLIB = 1
 endif

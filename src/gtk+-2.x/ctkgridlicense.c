@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2022 NVIDIA Corporation.
+ * Copyright (C) 2022-2023 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -46,6 +46,7 @@
 #define DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL   1000
 #define GRID_CONFIG_FILE                                        "/etc/nvidia/gridd.conf"
 #define GRID_CONFIG_FILE_TEMPLATE                               "/etc/nvidia/gridd.conf.template"
+#define BUF_LEN                                                 256
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage License page to obtain licenses "
@@ -64,26 +65,20 @@ static const char * __grid_vapp_help =
 static const char * __license_edition_help =
 "This section indicates the status of vGPU Software licensing on the system.";
 static const char * __license_server_help =
-"Shows the configured NVIDIA vGPU license server details.";
+"Shows the configured license server details read from Client Configuration token.";
 static const char * __primary_server_address_help =
-"Enter the address of your local NVIDIA vGPU license server. "
-"The address can be a fully-qualified domain name such as vgpulicense.example.com, "
-"or an IP address such as 10.31.20.45.";
+"The address of Primary license server.";
 static const char * __primary_server_port_help =
-"This field can be left empty, and will default to 7070, "
-"which is the default port number used by the NVIDIA vGPU license server.";
+"Port number used by the Primary license server.";
 static const char * __secondary_server_help =
-"This field is optional. Enter the address of your backup NVIDIA vGPU license server. "
-"The address can be a fully-qualified domain name such as backuplicense.example.com, "
-"or an IP address such as 10.31.20.46.";
+"The address of Secondary license server.";
 static const char * __secondary_server_port_help =
-"This field can be left empty, and will default to 7070, "
-"which is the default port number used by the NVIDIA vGPU license server.";
+"Port number used by the Secondary license server";
 static const char * __apply_button_help =
-"Clicking the Apply button updates license settings in the gridd.conf file and "
+"Clicking the Apply button updates license feature type in the gridd.conf file and "
 "sends update license request to the NVIDIA vGPU licensing daemon.";
 static const char * __cancel_button_help =
-"Clicking the Cancel button sets the text in all textboxes from the gridd.conf file. "
+"Clicking the Cancel button sets the license feature type from the gridd.conf file. "
 "Any changes you have done will be lost.";
 
 typedef struct
@@ -121,9 +116,6 @@ static void ctk_manage_grid_license_finalize(GObject *object);
 static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *, gpointer);
 static void dbusClose(DbusData *dbusData);
 static gboolean checkConfigfile(gboolean *writable);
-static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data);
-static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data);
-static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_gui_from_griddconfig(gpointer user_data);
 static gboolean licenseStateQueryFailed = FALSE;
 static void get_licensable_feature_information(gpointer user_data);
@@ -161,22 +153,14 @@ GType ctk_manage_grid_license_get_type(void)
 
 typedef enum
 {
-    NV_GRIDD_SERVER_ADDRESS = 0,
-    NV_GRIDD_SERVER_PORT,
-    NV_GRIDD_FEATURE_TYPE,
+    NV_GRIDD_FEATURE_TYPE = 0,
     NV_GRIDD_ENABLE_UI,
-    NV_GRIDD_BACKUP_SERVER_ADDRESS,
-    NV_GRIDD_BACKUP_SERVER_PORT,
     NV_GRIDD_MAX_TOKENS
 } CfgParams;
 
 static const char *configParamsList[] = {
-    [NV_GRIDD_SERVER_ADDRESS]        = "ServerAddress",
-    [NV_GRIDD_SERVER_PORT]           = "ServerPort",
     [NV_GRIDD_FEATURE_TYPE]          = "FeatureType",
     [NV_GRIDD_ENABLE_UI]             = "EnableUI",
-    [NV_GRIDD_BACKUP_SERVER_ADDRESS] = "BackupServerAddress",
-    [NV_GRIDD_BACKUP_SERVER_PORT]    = "BackupServerPort",
 };
 
 typedef struct NvGriddConfigParamsRec
@@ -265,12 +249,8 @@ static NvGriddConfigParams *AllocNvGriddConfigParams(void)
 {
     NvGriddConfigParams *griddConfig = nvalloc(sizeof(*griddConfig));
 
-    griddConfig->str[NV_GRIDD_SERVER_ADDRESS]        = nvstrdup("");
-    griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("");
     griddConfig->str[NV_GRIDD_FEATURE_TYPE]          = nvstrdup("0");
     griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("FALSE");
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup("");
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]    = nvstrdup("");
 
     return griddConfig;
 }
@@ -438,25 +418,6 @@ static void UpdateGriddConfigFromGui(
 {
     const char *tmp;
 
-    /* serverAddress */
-
-    tmp = gtk_entry_get_text(GTK_ENTRY(
-                              ctk_manage_grid_license->txt_server_address));
-    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_ADDRESS]) != 0) {
-        nvfree(griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
-        griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
-    }
-
-    /* serverPort */
-
-    tmp = gtk_entry_get_text(GTK_ENTRY(
-                              ctk_manage_grid_license->txt_server_port));
-    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_PORT]) != 0) {
-        nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
-        griddConfig->str[NV_GRIDD_SERVER_PORT] =
-            nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
-    }
-
     /* featureType */
 
     switch (ctk_manage_grid_license->feature_type) {
@@ -481,24 +442,6 @@ static void UpdateGriddConfigFromGui(
     }
 
     /* note: nothing in the UI will alter enableUI */
-
-    /* backupServerAddress */
-
-    tmp = gtk_entry_get_text(GTK_ENTRY(
-                              ctk_manage_grid_license->txt_secondary_server_address));
-    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]) != 0) {
-        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
-        griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
-    }
-
-    /* backupServerPort */
-
-    tmp = gtk_entry_get_text(GTK_ENTRY(
-                              ctk_manage_grid_license->txt_secondary_server_port));
-    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]) != 0) {
-        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
-        griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
-    }
 }
 
 /*
@@ -778,6 +721,70 @@ done:
     return ret;
 }
 
+static gboolean send_string_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license, char *param, char *value)
+{
+    gboolean ret = FALSE;
+    DBusMessage *msg, *reply;
+    DBusMessageIter args;
+    DBusError err;
+    char *receivedVal = NULL;
+
+    DbusData *dbusData = ctk_manage_grid_license->dbusData;
+    DBusConnection* conn = dbusData->conn;
+
+    /* initialise the errors */
+    dbusData->dbus.dbusErrorInit(&err);
+
+    /* a new method call */
+    msg = dbusData->dbus.dbusMessageNewMethodCall(NV_GRID_DBUS_TARGET, // target for the method call
+                                                  NV_GRID_DBUS_OBJECT, // object to call on
+                                                  NV_GRID_DBUS_INTERFACE, // interface to call on
+                                                  NV_GRID_DBUS_METHOD); // method name
+    if (NULL == msg)
+    {
+        return FALSE;
+    }
+    /* append arguments */
+    dbusData->dbus.dbusMessageIterInitAppend(msg, &args);
+
+    if (!dbusData->dbus.dbusMessageIterAppendBasic(&args, DBUS_TYPE_STRING, &param))
+    {
+        goto done;
+    }
+
+    /* send a message and block for a default time period
+    while waiting for a reply and returns NULL on failure with an error code.*/
+    reply = dbusData->dbus.dbusConnectionSendWithReplyAndBlock(conn, msg, -1, &err);  // -1 is default timeout
+    if ((reply == NULL) || (dbusData->dbus.dbusErrorIsSet(&err)))
+    {
+        goto done;
+    }
+
+    /* read the parameters */
+    if (!dbusData->dbus.dbusMessageIterInit(reply, &args))
+    {
+        nv_error_msg("vGPU License dbus communication: Message has no arguments!\n");
+    }
+    else if (DBUS_TYPE_STRING != dbusData->dbus.dbusMessageIterGetArgType(&args))
+    {
+        nv_error_msg("vGPU License dbus communication: Argument is not string!\n");
+    }
+    else
+    {
+        dbusData->dbus.dbusMessageIterGetBasic(&args, &receivedVal);
+        if (receivedVal != NULL)
+        {
+            strncpy(value, receivedVal, BUF_LEN);
+        }
+    }
+
+    ret = TRUE;
+done:
+    /* free message */
+    dbusData->dbus.dbusMessageUnref(msg);
+    return ret;
+}
+
 /*
  * update_manage_grid_license_state_info() - update manage_grid_license state
  */
@@ -790,6 +797,9 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
 
     int licenseState            = NV_GRID_UNLICENSED;
     int griddFeatureType        = ctk_manage_grid_license->feature_type;
+    int portNum = 0;
+    char licenseServerInfo[BUF_LEN] = { 0 };
+    char port[BUF_LEN] = { 0 };
 
     /* Send license state and feature type request */
     if ((!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
@@ -803,11 +813,6 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                                "dbus-daemon are running.\n";
         gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
                            licenseStatusMessage);
-        /* Disable text controls on UI. */
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, FALSE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, FALSE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
         /* Disable Apply/Cancel button. */
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
@@ -950,6 +955,30 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                     break;
             }
         }
+        else if (licenseState == NV_GRID_LICENSE_RENEWING) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VWS:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_STATUS_RENEWING;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (licenseState == NV_GRID_LICENSE_RENEW_FAILED) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VWS:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE:
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_STATUS_RENEW_FAILED;
+                    break;
+                default:
+                    break;
+            }
+        }
         else if ((ctk_manage_grid_license->feature_type == ctk_manage_grid_license->gridd_feature_type) &&  // 'Apply' button is clicked
                  (licenseState == NV_GRID_LICENSE_EXPIRED)) {
             switch (ctk_manage_grid_license->feature_type) {
@@ -980,10 +1009,61 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
         }
     }
 
+    // Fetch License Server details from nvidia-gridd through dbus
+    if (send_string_message_to_gridd(ctk_manage_grid_license, PRIMARY_SERVER_ADDRESS, licenseServerInfo))
+    {
+        // nvidia-gridd sends "Not Configured" if primary node is not available
+        if ((strlen(licenseServerInfo) > 0) && (strcmp(licenseServerInfo, SERVER_DETAILS_NOT_CONFIGURED) != 0))
+        {
+            gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), licenseServerInfo);
+            // Fetch primary server port number
+            if (send_message_to_gridd(ctk_manage_grid_license, LICENSE_SERVER_PORT_REQUEST, &portNum))
+            {
+                snprintf(port, BUF_LEN, "%d", portNum);
+            }
+            if (strlen(port) > 0)
+            {
+                gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), port);
+            }
+        }
+
+        memset(licenseServerInfo, '\0', BUF_LEN);
+        // Fetch Secondary Server Address
+        if (send_string_message_to_gridd(ctk_manage_grid_license, SECONDARY_SERVER_ADDRESS, licenseServerInfo))
+        {
+            // nvidia-gridd sends "Not Configured" if secondary node is not available
+            if ((strlen(licenseServerInfo) > 0) && (strcmp(licenseServerInfo, SERVER_DETAILS_NOT_CONFIGURED) != 0))
+            {
+                gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), licenseServerInfo);
+                portNum = 0;
+                // Fetch secondary server port number
+                if (send_message_to_gridd(ctk_manage_grid_license, LICENSE_SERVER_PORT_REQUEST, &portNum))
+                {
+                    memset(port, '\0', BUF_LEN);
+                    snprintf(port, BUF_LEN, "%d", portNum);
+                }
+                if (strlen(port) > 0)
+                {
+                    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), port);
+                }
+            }
+        }
+    }
+    else
+    {
+        licenseStatusMessage = "Unable to query license server information "
+                               "from the NVIDIA vGPU "
+                               "licensing daemon.\n"
+                               "Please make sure nvidia-gridd and "
+                               "dbus-daemon are running.\n";
+        gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state), licenseStatusMessage);
+        return ret;
+    }
+
     switch (ctk_manage_grid_license->licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid %s license.\n"
-              "Enter license server details and apply.", ctk_manage_grid_license->productName);
+              "Please configure client configuration token to acquire license.", ctk_manage_grid_license->productName);
           break;
     case NV_GRID_UNLICENSED_VAPP:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system is currently configured for %s.", NVIDIA_VIRTUAL_APPLICATIONS);
@@ -998,6 +1078,12 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     case NV_GRID_LICENSE_STATUS_FAILED:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Failed to acquire %s license.", ctk_manage_grid_license->productName);
           break;
+    case NV_GRID_LICENSE_STATUS_RENEWING:
+          snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Renewing license for %s.", ctk_manage_grid_license->productName);
+          break;
+    case NV_GRID_LICENSE_STATUS_RENEW_FAILED:
+         snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Failed to renew license for %s, expiring at %s.", ctk_manage_grid_license->productName, ctk_manage_grid_license->licenseExpiry);
+         break;
     case NV_GRID_LICENSE_STATUS_EXPIRED:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "%s license has expired.", ctk_manage_grid_license->productName);
           break;
@@ -1024,11 +1110,11 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
           break;
     case NV_GRID_UNLICENSED_REQUEST_DETAILS_VWS:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid %s license.\n"
-              "Enter license server details and apply.", ctk_manage_grid_license->productNamevWS);
+              "Please configure client configuration token to acquire license.", ctk_manage_grid_license->productNamevWS);
           break;
     case NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid %s license.\n"
-              "Enter license server details and apply.", ctk_manage_grid_license->productNamevCompute);
+              "Please configure client configuration token to acquire license.", ctk_manage_grid_license->productNamevCompute);
           break;
     case NV_GRID_LICENSE_GSP_REQUIRED_VCS:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Enable GSP firmware for %s.", ctk_manage_grid_license->productNamevCompute);
@@ -1038,7 +1124,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
           break;
     default:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid GRID license.\n"
-              "Enter license server details and apply.");
+              "Please configure client configuration token to acquire license.");
           break;
     }
 
@@ -1270,26 +1356,9 @@ static void update_gui_from_griddconfig(gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     NvGriddConfigParams *griddConfig = NULL;
-    const char *textBoxServerStr;
 
     griddConfig = GetNvGriddConfigParams();
-    if (!griddConfig) {
-        nv_error_msg("Null griddConfig. \n");
-        /* If griddConfig is Null, clear out all the textboxes. */
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "");
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "");
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "");
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "");
-    } else {
-        /* Set the text in all the textboxes from the griddconfig. */
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address),
-                           griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port),
-                           griddConfig->str[NV_GRIDD_SERVER_PORT]);
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address),
-                           griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
-        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
-                           griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+    if (griddConfig) {
         /* set default value for feature type based on the user configured parameter or virtualization mode */
         updateFeatureTypeFromGriddConfig(ctk_manage_grid_license, griddConfig);
 
@@ -1304,9 +1373,6 @@ static void update_gui_from_griddconfig(gpointer user_data)
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_manage_grid_license->radio_btn_vapp), TRUE);
         }
 
-        /* Enable Primary server address/port textboxes. */
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, TRUE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, TRUE);
         /* Enable toggle buttons. */
         if (ctk_manage_grid_license->radio_btn_vcompute) {
             gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vcompute, TRUE);
@@ -1318,15 +1384,6 @@ static void update_gui_from_griddconfig(gpointer user_data)
             gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, TRUE);
         }
 
-        textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
-        /* Enable/Disable Secondary server address/port textboxes if Primary server address textbox string is empty. */
-        if (strcmp(textBoxServerStr, "") == 0) {
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
-        } else {
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
-        }
         /* Disable Apply/Cancel button. */
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
@@ -1357,7 +1414,6 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
     user_data = g_object_get_data(G_OBJECT(widget), "button_id");
 
     if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_VWS) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
         snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "You selected %s", ctk_manage_grid_license->productNamevWS);
         statusBarMsg = licenseStatusMsgTmp;
         ctk_manage_grid_license->feature_type =
@@ -1368,7 +1424,6 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
                 gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
         }
     }  else if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_VAPP) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         ctk_manage_grid_license->feature_type = 
             NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
         snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "You selected %s", NVIDIA_VIRTUAL_APPLICATIONS);
@@ -1379,7 +1434,6 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
             gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
         }
     } else if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
         snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "You selected %s", ctk_manage_grid_license->productNamevCompute);
         statusBarMsg = licenseStatusMsgTmp;
         ctk_manage_grid_license->feature_type =
@@ -1396,106 +1450,6 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
                                  "%s", statusBarMsg);
     update_manage_grid_license_state_info(ctk_manage_grid_license);
     FreeNvGriddConfigParams(griddConfig);
-}
-
-static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data)
-{
-    GdkEventKey *key_event;
-
-    if (event->type == GDK_KEY_PRESS) {
-        key_event = (GdkEventKey *) event;
-
-        if (isspace(key_event->keyval)) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-}
-
-static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data)
-{
-    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
-    NvGriddConfigParams *griddConfig;
-    const char *textBoxServerStr, *textBoxServerPortStr, *textBoxSecondaryServerStr, *textBoxSecondaryServerPortStr;
-
-    griddConfig = GetNvGriddConfigParams();
-    if (!griddConfig)
-        return TRUE;
-
-    if (event->type == GDK_KEY_RELEASE) {
-
-        // Read license strings from textboxes.
-        textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
-        textBoxServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port));
-        textBoxSecondaryServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address));
-        textBoxSecondaryServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port));
-
-        /* Enable apply/cancel button if either:
-            Primary server address/port textbox string doesn't match with the Primary server string from the vGPU license config file or
-            Secondary server address/port textbox string doesn't match with the Secondary server string from the vGPU license config file. */
-        if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
-            ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
-            (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
-            (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
-                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
-                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
-        } else {
-                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
-                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
-        }
-
-        /* Disable Secondary server address/port textboxes if Primary server address text box string is empty
-            to notify user that Primary server address is mandatory. */
-        if (strcmp(textBoxServerStr, "") == 0) {
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
-        } else {
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
-            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
-        }
-    }
-
-    FreeNvGriddConfigParams(griddConfig);
-
-    return FALSE;
-}
-
-static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data)
-{
-    GdkEventKey *key_event;
-
-    if (event->type == GDK_KEY_PRESS) {
-        key_event = (GdkEventKey *) event;
-        switch (key_event->keyval) {
-        case GDK_Left:
-        case GDK_KP_Left:
-        case GDK_Down:
-        case GDK_KP_Down:
-        case GDK_Right:
-        case GDK_KP_Right:
-        case GDK_Up:
-        case GDK_KP_Up:
-        case GDK_Page_Down:
-        case GDK_KP_Page_Down:
-        case GDK_Page_Up:
-        case GDK_KP_Page_Up:
-        case GDK_BackSpace:
-        case GDK_Delete:
-        case GDK_Tab:
-        case GDK_KP_Tab:
-        case GDK_ISO_Left_Tab:
-            // Allow all control keys
-            return FALSE;
-        default:
-            // Allow digits
-            if (isdigit(key_event->keyval)) {
-                return FALSE;
-            }
-        }
-    }
-
-    return TRUE;
 }
 
 static gboolean checkConfigfile(gboolean *writable)
@@ -1788,7 +1742,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_container_add(GTK_CONTAINER(frame), vbox2);
     
     /* License Server */
-    label = gtk_label_new("License Server:");
+    label = gtk_label_new("License Server Details:");
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1808,7 +1762,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
 
     /* Primary License Server Address */
-    label = gtk_label_new("Primary Server:");
+    label = gtk_label_new("Primary Server Address:");
     ctk_manage_grid_license->txt_server_address = gtk_entry_new();
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
@@ -1817,15 +1771,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "key-press-event",
-                     G_CALLBACK(disallow_whitespace),
-                     (gpointer) ctk_manage_grid_license);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "key-release-event",
-                     G_CALLBACK(enable_disable_ui_controls),
-                     (gpointer) ctk_manage_grid_license);
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
+    gtk_widget_set_size_request(ctk_manage_grid_license->txt_server_address, BUF_LEN, -1);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_server_address,
                        FALSE, FALSE, 0);
@@ -1845,21 +1794,17 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     ctk_manage_grid_license->txt_server_port = gtk_entry_new();
+
+    gtk_widget_set_size_request(ctk_manage_grid_license->txt_server_port, BUF_LEN, -1);
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_server_port,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "key-press-event",
-                     G_CALLBACK(allow_digits),
-                     (gpointer) ctk_manage_grid_license);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "key-release-event",
-                     G_CALLBACK(enable_disable_ui_controls),
-                     (gpointer) ctk_manage_grid_license);
 
     /* Backup Server Address */
-    label = gtk_label_new("Secondary Server:");
+    label = gtk_label_new("Secondary Server Address:");
     ctk_manage_grid_license->txt_secondary_server_address = gtk_entry_new();
 
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1870,15 +1815,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 5, 6,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "key-press-event",
-                     G_CALLBACK(disallow_whitespace),
-                     (gpointer) ctk_manage_grid_license);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "key-release-event",
-                     G_CALLBACK(enable_disable_ui_controls),
-                     (gpointer) ctk_manage_grid_license);
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
+    gtk_widget_set_size_request(ctk_manage_grid_license->txt_secondary_server_address, BUF_LEN, -1);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_secondary_server_address,
                        FALSE, FALSE, 0);
@@ -1898,19 +1838,13 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     ctk_manage_grid_license->txt_secondary_server_port = gtk_entry_new();
-
+    gtk_widget_set_size_request(ctk_manage_grid_license->txt_secondary_server_port, BUF_LEN, -1);
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_secondary_server_port,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 6, 7,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "key-press-event",
-                     G_CALLBACK(allow_digits),
-                     (gpointer) ctk_manage_grid_license);
-    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "key-release-event",
-                     G_CALLBACK(enable_disable_ui_controls),
-                     (gpointer) ctk_manage_grid_license);
     ctk_manage_grid_license->box_server_info = vbox2;
 
     /* Apply button */
@@ -1939,6 +1873,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_cancel), "clicked",
                      G_CALLBACK(cancel_clicked),
                      (gpointer) ctk_manage_grid_license);
+
+    // Disable write action text boxes for license server information
+    gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, FALSE);
+    gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, FALSE);
+    gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+    gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
 
     /* Update GUI with information from the vGPU license config file */
     update_gui_from_griddconfig(ctk_manage_grid_license);
@@ -2009,16 +1949,16 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "%s", __grid_vapp_help);
     }
 
-    ctk_help_heading(b, &i, "License Server");
+    ctk_help_heading(b, &i, "License Server Details");
     ctk_help_para(b, &i, "%s", __license_server_help);
 
-    ctk_help_heading(b, &i, "Primary Server");
+    ctk_help_heading(b, &i, "Primary Server Address");
     ctk_help_para(b, &i, "%s", __primary_server_address_help);
 
     ctk_help_heading(b, &i, "Port Number");
     ctk_help_para(b, &i, "%s", __primary_server_port_help);
 
-    ctk_help_heading(b, &i, "Secondary Server");
+    ctk_help_heading(b, &i, "Secondary Server Address");
     ctk_help_para(b, &i, "%s", __secondary_server_help);
 
     ctk_help_heading(b, &i, "Port Number");

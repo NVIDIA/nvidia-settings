@@ -1,4 +1,3 @@
-//sw/dev/gpu_drv/dev_a/drivers/ui/linux/src/gtk+-2.x/ctkdisplayconfig.c#205 - edit change 30492598 (text)
 /*
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
@@ -9170,31 +9169,34 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
         display = screen->displays;;
 
         if (!display) {
-            nv_error_msg("Unable to find a display device for screen %d!",
-                         screen->scrnum);
-            goto fail;
-        }
+            nv_warning_msg("Unable to find a display device for screen %d!",
+                           screen->scrnum);
+            xconfigAddNewOption(&conf_screen->options,
+                                "AllowEmptyInitialConfiguration",
+                                "True");
+        } else {
+
+            /* Create the screen's only Monitor section from the first display */
+            if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
+                nv_error_msg("Failed to add display device '%s' to screen %d!",
+                             display->logName, screen->scrnum);
+                goto fail;
+            }
 
 
-        /* Create the screen's only Monitor section from the first display */
-        if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
-            nv_error_msg("Failed to add display device '%s' to screen %d!",
-                         display->logName, screen->scrnum);
-            goto fail;
-        }
+            /* Tie the screen to the monitor section */
+            conf_screen->monitor_name =
+                xconfigStrdup(display->conf_monitor->identifier);
+            conf_screen->monitor = display->conf_monitor;
 
 
-        /* Tie the screen to the monitor section */
-        conf_screen->monitor_name =
-            xconfigStrdup(display->conf_monitor->identifier);
-        conf_screen->monitor = display->conf_monitor;
+            /* Add the modelines of all other connected displays to the monitor */
+            for (other = display->next_in_screen;
+                 other;
+                 other = other->next_in_screen) {
+                add_modelines_to_monitor(display->conf_monitor, other->modes);
+            }
 
-
-        /* Add the modelines of all other connected displays to the monitor */
-        for (other = display->next_in_screen;
-             other;
-             other = other->next_in_screen) {
-            add_modelines_to_monitor(display->conf_monitor, other->modes);
         }
 
         /* Set the Stereo option */
@@ -9225,8 +9227,10 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
         }
 
         if (metamode_strs) {
-            xconfigAddNewOption(&conf_screen->options, "metamodes",
-                                metamode_strs);
+            if (g_ascii_strcasecmp(metamode_strs, "NULL") != 0) {
+                xconfigAddNewOption(&conf_screen->options, "metamodes",
+                                    metamode_strs);
+            }
             free(metamode_strs);
         }
 

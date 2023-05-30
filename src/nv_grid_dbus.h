@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2019 NVIDIA Corporation.
+ * Copyright (C) 2017-2023 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -31,6 +31,10 @@
 #define LICENSE_STATE_REQUEST           1
 #define LICENSE_DETAILS_UPDATE_REQUEST  2
 #define LICENSE_FEATURE_TYPE_REQUEST    3
+#define LICENSE_SERVER_PORT_REQUEST     4
+#define PRIMARY_SERVER_ADDRESS          "PrimaryServerAddress"
+#define SECONDARY_SERVER_ADDRESS        "SecondaryServerAddress"
+#define SERVER_DETAILS_NOT_CONFIGURED   "Not Configured"
 
 /*
  * vGPU software license states

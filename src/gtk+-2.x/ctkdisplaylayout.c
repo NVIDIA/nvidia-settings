@@ -2508,6 +2508,27 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
 
 
 
+/** reselect_selected_item() **************************************************
+ *
+ * Make sure the currently selected item is at the top of drawing stack of
+ * layout items.
+ *
+ */
+static void reselect_selected_item(CtkDisplayLayout *ctk_object)
+{
+    if (ctk_object->selected_display) {
+        select_display(ctk_object, ctk_object->selected_display);
+    } else if (ctk_object->selected_screen) {
+        select_screen(ctk_object, ctk_object->selected_screen);
+    } else if (ctk_object->selected_prime_display) {
+        select_prime_display(ctk_object, ctk_object->selected_prime_display);
+    } else {
+        select_default_item(ctk_object);
+    }
+}
+
+
+
 /** get_display_tooltip() ********************************************
  *
  * Returns the text to use for displaying a tooltip from the given
@@ -3854,6 +3875,8 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
 void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object)
 {
     zorder_layout(ctk_object);
+
+    reselect_selected_item(ctk_object);
 
     queue_layout_redraw(ctk_object);
 

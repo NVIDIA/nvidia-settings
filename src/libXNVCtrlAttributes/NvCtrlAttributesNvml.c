@@ -208,8 +208,11 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
 
 #define STRINGIFY_SYMBOL(_symbol) #_symbol
 
+#define EXPAND_STRING(_symbol) STRINGIFY_SYMBOL(_symbol)
+
 #define GET_SYMBOL(_required, _proc)                                           \
     nvml->lib._proc = dlsym(nvml->lib.handle, "nvml" STRINGIFY_SYMBOL(_proc)); \
+    nvml->lib._proc = dlsym(nvml->lib.handle, EXPAND_STRING(nvml ## _proc));   \
     if (nvml->lib._proc == NULL) {                                             \
         if (_required) {                                                       \
             goto fail;                                                         \
@@ -260,8 +263,12 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, DeviceSetFanControlPolicy);
     GET_SYMBOL(_OPTIONAL, DeviceGetFanControlPolicy_v2);
     GET_SYMBOL(_OPTIONAL, DeviceSetDefaultFanSpeed_v2);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPowerUsage);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPowerManagementLimitConstraints);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPowerManagementDefaultLimit);
 
 #undef GET_SYMBOL
+#undef EXPAND_STRING
 #undef STRINGIFY_SYMBOL
 
     ret = nvml->lib.Init();
@@ -438,7 +445,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
                     nvml->deviceIdx = devIdx;
                 }
 
-                nvml->sensorCountPerGPU[i] = 1;
+                nvml->sensorCountPerGPU[devIdx] = 1;
                 nvml->sensorCount++;
             }
 
@@ -450,7 +457,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
                     nvml->deviceIdx = devIdx;
                 }
 
-                nvml->coolerCountPerGPU[i] = fans;
+                nvml->coolerCountPerGPU[devIdx] = fans;
                 nvml->coolerCount += fans;
             }
         }
@@ -1028,14 +1035,32 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_GPU_POWER_SOURCE:
                 assert(NV_CTRL_GPU_POWER_SOURCE_AC == NVML_POWER_SOURCE_AC);
                 assert(NV_CTRL_GPU_POWER_SOURCE_BATTERY == NVML_POWER_SOURCE_BATTERY);
+                assert(NV_CTRL_GPU_POWER_SOURCE_UNDERSIZED == NVML_POWER_SOURCE_UNDERSIZED);
                 ret = nvml->lib.DeviceGetPowerSource(device, &res);
                 break;
+            case NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE:
+                ret = nvml->lib.DeviceGetPowerUsage(device, &res);
+                break;
+
+            case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
+                {
+                    unsigned int minLimit;
+                    ret = nvml->lib.DeviceGetPowerManagementLimitConstraints(device,
+                                                                             &minLimit, &res);
+                }
+                break;
+
+            case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
+                ret = nvml->lib.DeviceGetPowerManagementDefaultLimit(device, &res);
+                break;
+
             case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
                 {
                     nvmlFanControlPolicy_t policy;
+                    int count = nvml->coolerCountPerGPU[nvml->deviceIdx];
 
                     /* Return early if GPU has no fan */
-                    if (nvml->coolerCount == 0) {
+                    if (count == 0) {
                         return NvCtrlNotSupported;
                     }
 
@@ -1962,6 +1987,9 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_GPU_CORES:
             case NV_CTRL_IRQ:
             case NV_CTRL_GPU_POWER_SOURCE:
+            case NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE:
+            case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
+            case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
                 break;
 
@@ -2262,6 +2290,9 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_GPU_CORES:
         case NV_CTRL_IRQ:
         case NV_CTRL_GPU_POWER_SOURCE:
+        case NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE:
+        case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
+        case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
         case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
         /* CTRL_ATTRIBUTE_VALID_TYPE_BOOL */
         case NV_CTRL_GPU_ECC_SUPPORTED:

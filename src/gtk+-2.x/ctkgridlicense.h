@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2022 NVIDIA Corporation.
+ * Copyright (C) 2022-2023 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -93,6 +93,8 @@ typedef enum
     NV_GRID_LICENSE_STATUS_ACQUIRED,
     NV_GRID_LICENSE_STATUS_REQUESTING,
     NV_GRID_LICENSE_STATUS_FAILED,
+    NV_GRID_LICENSE_STATUS_RENEWING,
+    NV_GRID_LICENSE_STATUS_RENEW_FAILED,
     NV_GRID_LICENSE_STATUS_EXPIRED,
     NV_GRID_LICENSE_RESTART_REQUIRED_VAPP,
     NV_GRID_LICENSE_RESTART_REQUIRED_VWS,

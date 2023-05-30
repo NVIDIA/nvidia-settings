@@ -77,6 +77,12 @@ struct _CtkPowermizer
 
     GtkWidget *link_width;
     GtkWidget *link_speed;
+    GtkWidget *max_tgp;
+    GtkWidget *default_tgp;
+    GtkWidget *power_draw;
+
+    gint      max_tgp_value;
+    gint      default_tgp_value;
 };
 
 struct _CtkPowermizerClass

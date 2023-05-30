@@ -1968,6 +1968,7 @@
 #define NV_CTRL_GPU_POWER_SOURCE                                262 /* R--G */
 #define NV_CTRL_GPU_POWER_SOURCE_AC                               0
 #define NV_CTRL_GPU_POWER_SOURCE_BATTERY                          1
+#define NV_CTRL_GPU_POWER_SOURCE_UNDERSIZED                       2
 
 
 /*
@@ -3661,7 +3662,13 @@
 #define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_MULTIPLY           0
 #define NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE_DIVIDE             1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_MULTIPLY_DIVIDE_MODE
+/*
+ * NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED - Returns how many underlying hardware
+ * heads are currently used to drive this display.
+ */
+#define NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED                      442 /* R-DG */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
 
 /**************************************************************************/
 

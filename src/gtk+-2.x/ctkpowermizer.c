@@ -66,6 +66,15 @@ static const char *__power_source_help =
 "The Power Source indicates whether the machine "
 "is running on AC or Battery power.";
 
+static const char *__power_draw_help =
+"This indicates the current power usage of the GPU, in Watts.";
+
+static const char *__default_tgp_help =
+"This indicates the default Total Graphics Power (TGP) of the GPU, in Watts.";
+
+static const char *__max_tgp_help =
+"This indicates the maximum Total Graphics Power (TGP) of the GPU, in Watts.";
+
 static const char *__current_pcie_link_width_help =
 "This is the current PCIe link width of the GPU, in number of lanes.";
 
@@ -905,12 +914,13 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
 static gboolean update_powermizer_info(gpointer user_data)
 {
+    gint power_draw;
     gint power_source, adaptive_clock, perf_level;
     gint gpu_clock, memory_transfer_rate;
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
     CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     gint ret;
-    gchar *s;
+    gchar *s = NULL;
     char *clock_string = NULL;
     perfModeEntry pEntry;
 
@@ -974,12 +984,55 @@ static gboolean update_powermizer_info(gpointer user_data)
         else if (power_source == NV_CTRL_GPU_POWER_SOURCE_BATTERY) {
             s = g_strdup_printf("Battery");
         }
+        else if (power_source == NV_CTRL_GPU_POWER_SOURCE_UNDERSIZED) {
+            s = g_strdup_printf("Undersized");
+        }
         else {
             s = g_strdup_printf("Error");
         }
 
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->power_source), s);
         g_free(s);
+    }
+
+    /* Power Draw */
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE,
+                             &power_draw);
+    if ((ret == NvCtrlSuccess) && ctk_powermizer->power_draw) {
+        /* Round up to 1 watt for display  */
+        if (power_draw < 1000) {
+            power_draw = 1000;
+        }
+        s = g_strdup_printf("%.2f W", power_draw / 1000.0f);
+        gtk_label_set_text(GTK_LABEL(ctk_powermizer->power_draw), s);
+        g_free(s);
+    }
+
+    /* Show TGP as N/A when power source is battery or undersized. */
+    if ((power_source == NV_CTRL_GPU_POWER_SOURCE_BATTERY) ||
+        (power_source == NVML_POWER_SOURCE_UNDERSIZED)) {
+        s = g_strdup_printf("N/A");
+        if (ctk_powermizer->default_tgp) {
+            gtk_label_set_text(GTK_LABEL(ctk_powermizer->default_tgp), s);
+        }
+        if (ctk_powermizer->max_tgp) {
+            gtk_label_set_text(GTK_LABEL(ctk_powermizer->max_tgp), s);
+        }
+        g_free(s);
+    } else if (power_source == NV_CTRL_GPU_POWER_SOURCE_AC) {
+        if (ctk_powermizer->default_tgp) {
+            s = g_strdup_printf("%.2f W",
+                                ctk_powermizer->default_tgp_value / 1000.0f);
+            gtk_label_set_text(GTK_LABEL(ctk_powermizer->default_tgp), s);
+            g_free(s);
+        }
+        if (ctk_powermizer->max_tgp) {
+            s = g_strdup_printf("%.2f W",
+                                ctk_powermizer->max_tgp_value / 1000.0f);
+            gtk_label_set_text(GTK_LABEL(ctk_powermizer->max_tgp), s);
+            g_free(s);
+        }
     }
 
     if (ctk_powermizer->link_width) {
@@ -1099,11 +1152,16 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     CtkDropDownMenu *menu;
     ReturnStatus ret;
     gint nvclock_attribute = 0, mem_transfer_rate_attribute = 0;
+    gint default_tgp = 0;
+    gint max_tgp = 0;
     gint val;
     gint row = 0;
     gchar *s = NULL;
     gint tmp;
     gboolean power_source_available = FALSE;
+    gboolean power_draw_available = FALSE;
+    gboolean max_tgp_available = FALSE;
+    gboolean default_tgp_available = FALSE;
     gboolean perf_level_available = FALSE;
     gboolean gpu_clock_available = FALSE;
     gboolean mem_transfer_rate_available = FALSE;
@@ -1229,6 +1287,29 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     ctk_powermizer->nvclock_attribute = nvclock_attribute;
     ctk_powermizer->mem_transfer_rate_attribute = mem_transfer_rate_attribute;
 
+    /* check if power management information is available */
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE,
+                             &tmp);
+    if (ret == NvCtrlSuccess) {
+        power_draw_available = TRUE;
+    }
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP,
+                             &default_tgp);
+    if (ret == NvCtrlSuccess) {
+        default_tgp_available = TRUE;
+        ctk_powermizer->default_tgp_value = default_tgp;
+    }
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_ATTR_NVML_GPU_MAX_TGP,
+                             &max_tgp);
+    if (ret == NvCtrlSuccess) {
+        max_tgp_available = TRUE;
+        ctk_powermizer->max_tgp_value = max_tgp;
+    }
+
     /* set container properties for the CtkPowermizer widget */
 
     gtk_box_set_spacing(GTK_BOX(ctk_powermizer), 5);
@@ -1324,6 +1405,58 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
                                          NULL);
     } else {
         ctk_powermizer->power_source = NULL;
+    }
+    /* Power Draw */
+    if (power_draw_available) {
+        /* spacing */
+        row += 3;
+        ctk_powermizer->power_draw =
+            add_table_row_with_help_text(table, ctk_config,
+                                         __power_draw_help,
+                                         row++, //row
+                                         0,  // column
+                                         0.0f,
+                                         0.5,
+                                         "Power Draw:",
+                                         0.0,
+                                         0.5,
+                                         NULL);
+    } else {
+        ctk_powermizer->power_draw = NULL;
+    }
+    /* Default TGP */
+    if (default_tgp_available) {
+        /* spacing */
+        ctk_powermizer->default_tgp =
+            add_table_row_with_help_text(table, ctk_config,
+                                         __default_tgp_help,
+                                         row++, //row
+                                         0,  // column
+                                         0.0f,
+                                         0.5,
+                                         "Default TGP:",
+                                         0.0,
+                                         0.5,
+                                         NULL);
+    } else {
+        ctk_powermizer->default_tgp = NULL;
+    }
+    /* Max TGP */
+    if (max_tgp_available) {
+        /* spacing */
+        ctk_powermizer->max_tgp =
+            add_table_row_with_help_text(table, ctk_config,
+                                         __max_tgp_help,
+                                         row++, //row
+                                         0,  // column
+                                         0.0f,
+                                         0.5,
+                                         "Max TGP:",
+                                         0.0,
+                                         0.5,
+                                         NULL);
+    } else {
+        ctk_powermizer->max_tgp = NULL;
     }
     /* PCIe Gen Info block */
     if (pcie_link_width_available || pcie_link_speed_available) {
@@ -1717,6 +1850,19 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
     if (ctk_powermizer->power_source) {
         ctk_help_heading(b, &i, "Power Source");
         ctk_help_para(b, &i, "%s", __power_source_help);
+    }
+
+    if (ctk_powermizer->power_draw) {
+        ctk_help_heading(b, &i, "Power Draw");
+        ctk_help_para(b, &i, "%s", __power_draw_help);
+    }
+    if (ctk_powermizer->default_tgp) {
+        ctk_help_heading(b, &i, "Default TGP");
+        ctk_help_para(b, &i, "%s", __default_tgp_help);
+    }
+    if (ctk_powermizer->max_tgp) {
+        ctk_help_heading(b, &i, "Max TGP");
+        ctk_help_para(b, &i, "%s", __max_tgp_help);
     }
 
     if (ctk_powermizer->link_width) {
