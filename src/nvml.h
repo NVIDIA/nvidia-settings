@@ -9966,58 +9966,45 @@ nvmlReturn_t DECLDIR nvmlGpmMigSampleGet(nvmlDevice_t device, unsigned int gpuIn
  */
 nvmlReturn_t DECLDIR nvmlGpmQueryDeviceSupport(nvmlDevice_t device, nvmlGpmSupport_t *gpmSupport);
 
-/** @} */ // @defgroup nvmlGpmFunctions
-/** @} */ // @defgroup GPM
-
-/***************************************************************************************************/
-/** @defgroup nvmlDevice definitions related to Counter Collection Unit
- *  @{
- */
-/***************************************************************************************************/
-
-/* CCU Stream State */
-#define NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_DISABLE 0
-#define NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_ENABLE  1
-
+/* GPM Stream State */
 /**
- * Get counter collection unit stream state.
+ * Get GPM stream state.
  *
  * %HOPPER_OR_NEWER%
  * Supported on Linux, Windows TCC.
  *
  * @param device                               The identifier of the target device
- * @param state                                Returns counter collection unit stream state
- *                                             NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_DISABLE or
- *                                             NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_ENABLE
+ * @param state                                Returns GPM stream state
+ *                                             NVML_FEATURE_DISABLED or NVML_FEATURE_ENABLED
  *
  * @return
- *         - \ref NVML_SUCCESS                 if \a current counter collection unit stream state were successfully queried
+ *         - \ref NVML_SUCCESS                 if \a current GPM stream state were successfully queried
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a  device is invalid or \a state is NULL
  *         - \ref NVML_ERROR_NOT_SUPPORTED     if this query is not supported by the device
  */
-nvmlReturn_t DECLDIR nvmlDeviceCcuGetStreamState(nvmlDevice_t device, unsigned int *state);
+nvmlReturn_t DECLDIR nvmlGpmQueryIfStreamingEnabled(nvmlDevice_t device, unsigned int *state);
 
 /**
- * Set counter collection unit stream state.
+ * Set GPM stream state.
  *
  * %HOPPER_OR_NEWER%
  * Supported on Linux, Windows TCC.
  *
  * @param device                               The identifier of the target device
- * @param state                                Counter collection unit stream state,
- *                                             NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_DISABLE or
- *                                             NVML_COUNTER_COLLECTION_UNIT_STREAM_STATE_ENABLE
+ * @param state                                GPM stream state,
+ *                                             NVML_FEATURE_DISABLED or NVML_FEATURE_ENABLED
  *
  * @return
- *         - \ref NVML_SUCCESS                 if \a current counter collection unit stream state is successfully set
+ *         - \ref NVML_SUCCESS                 if \a current GPM stream state is successfully set
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid
  *         - \ref NVML_ERROR_NOT_SUPPORTED     if this query is not supported by the device
  */
-nvmlReturn_t DECLDIR nvmlDeviceCcuSetStreamState(nvmlDevice_t device, unsigned int state);
+nvmlReturn_t DECLDIR nvmlGpmSetStreamingEnabled(nvmlDevice_t device, unsigned int state);
 
-/** @} */ // @defgroup CCU
+/** @} */ // @defgroup nvmlGpmFunctions
+/** @} */ // @defgroup GPM
 
 #define NVML_NVLINK_POWER_STATE_HIGH_SPEED    0x0
 #define NVML_NVLINK_POWER_STATE_LOW           0x1
@@ -10136,7 +10123,6 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses(nvmlDevice_t device
 nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v2_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstancePossiblePlacements(nvmlDevice_t device, unsigned int profileId, nvmlGpuInstancePlacement_t *placements, unsigned int *count);
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetLicenseInfo(nvmlVgpuInstance_t vgpuInstance, nvmlVgpuLicenseInfo_t *licenseInfo);
-
 #endif // #ifdef NVML_NO_UNVERSIONED_FUNC_DEFS
 
 #if defined(NVML_NO_UNVERSIONED_FUNC_DEFS)

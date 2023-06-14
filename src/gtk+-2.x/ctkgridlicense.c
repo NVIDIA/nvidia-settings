@@ -50,7 +50,7 @@
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage License page to obtain licenses "
-"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation on supported Tesla products. "
+"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA Virtual Compute Server on supported Tesla products. "
 "The current license status is displayed on the page. If licensed, the license expiry information in GMT time zone is shown.";
 static const char * __manage_grid_licenses_vcompute_help =
 "Use the Manage License page to obtain licenses "
@@ -78,8 +78,8 @@ static const char * __apply_button_help =
 "Clicking the Apply button updates license feature type in the gridd.conf file and "
 "sends update license request to the NVIDIA vGPU licensing daemon.";
 static const char * __cancel_button_help =
-"Clicking the Cancel button sets the license feature type from the gridd.conf file. "
-"Any changes you have done will be lost.";
+"Clicking the Cancel button sets the license settings from the gridd.conf file. "
+"Any changes you have done on this page will be lost.";
 
 typedef struct
 {
