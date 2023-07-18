@@ -2331,8 +2331,9 @@ typedef enum nvmlPcieLinkState_enum
 /**
  * Confidential Compute CPU Capabilities values
  */
-#define NVML_CC_SYSTEM_CPU_CAPS_NONE    0
-#define NVML_CC_SYSTEM_CPU_CAPS_AMD_SEV 1
+#define NVML_CC_SYSTEM_CPU_CAPS_NONE      0
+#define NVML_CC_SYSTEM_CPU_CAPS_AMD_SEV   1
+#define NVML_CC_SYSTEM_CPU_CAPS_INTEL_TDX 2
 
 /**
  * Confidenial Compute GPU Capabilities values
