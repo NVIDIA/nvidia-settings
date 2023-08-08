@@ -114,9 +114,9 @@ extern "C" {
     #define nvmlEventSetWait                            nvmlEventSetWait_v2
     #define nvmlDeviceGetAttributes                     nvmlDeviceGetAttributes_v2
     #define nvmlComputeInstanceGetInfo                  nvmlComputeInstanceGetInfo_v2
-    #define nvmlDeviceGetComputeRunningProcesses        nvmlDeviceGetComputeRunningProcesses_v3
-    #define nvmlDeviceGetGraphicsRunningProcesses       nvmlDeviceGetGraphicsRunningProcesses_v3
-    #define nvmlDeviceGetMPSComputeRunningProcesses     nvmlDeviceGetMPSComputeRunningProcesses_v3
+    #define nvmlDeviceGetComputeRunningProcesses        nvmlDeviceGetComputeRunningProcesses_v2
+    #define nvmlDeviceGetGraphicsRunningProcesses       nvmlDeviceGetGraphicsRunningProcesses_v2
+    #define nvmlDeviceGetMPSComputeRunningProcesses     nvmlDeviceGetMPSComputeRunningProcesses_v2
     #define nvmlBlacklistDeviceInfo_t                   nvmlExcludedDeviceInfo_t
     #define nvmlGetBlacklistDeviceCount                 nvmlGetExcludedDeviceCount
     #define nvmlGetBlacklistDeviceInfoByIndex           nvmlGetExcludedDeviceInfoByIndex
@@ -265,23 +265,6 @@ typedef struct nvmlProcessInfo_v1_st
 /**
  * Information about running compute processes on the GPU
  */
-typedef struct nvmlProcessInfo_v2_st
-{
-    unsigned int        pid;                //!< Process ID
-    unsigned long long  usedGpuMemory;      //!< Amount of used GPU memory in bytes.
-                                            //! Under WDDM, \ref NVML_VALUE_NOT_AVAILABLE is always reported
-                                            //! because Windows KMD manages all the memory and not the NVIDIA driver
-    unsigned int        gpuInstanceId;      //!< If MIG is enabled, stores a valid GPU instance ID. gpuInstanceId is set to
-                                            //  0xFFFFFFFF otherwise.
-    unsigned int        computeInstanceId;  //!< If MIG is enabled, stores a valid compute instance ID. computeInstanceId is set to
-                                            //  0xFFFFFFFF otherwise.
-} nvmlProcessInfo_v2_t;
-
-/**
- * Information about running compute processes on the GPU
- * Version 2 adds versioning for the struct
- * and the conf compute protected memory in output.
- */
 typedef struct nvmlProcessInfo_st
 {
     unsigned int        pid;                //!< Process ID
@@ -292,7 +275,6 @@ typedef struct nvmlProcessInfo_st
                                             //  0xFFFFFFFF otherwise.
     unsigned int        computeInstanceId;  //!< If MIG is enabled, stores a valid compute instance ID. computeInstanceId is set to
                                             //  0xFFFFFFFF otherwise.
-    unsigned long long  usedGpuCcProtectedMemory; //!< Amount of used GPU conf compute protected memory in bytes.
 } nvmlProcessInfo_t;
 
 typedef struct nvmlDeviceAttributes_st
@@ -1221,6 +1203,10 @@ typedef struct nvmlVgpuProcessUtilizationSample_st
 
 #define NVML_SCHEDULER_SW_MAX_LOG_ENTRIES 200
 
+#define NVML_VGPU_SCHEDULER_ARR_UNDEFINED 0
+#define NVML_VGPU_SCHEDULER_ARR_DISABLE   1
+#define NVML_VGPU_SCHEDULER_ARR_ENABLE    2
+
 /**
  * Union to represent the vGPU Scheduler Parameters
  */
@@ -1259,7 +1245,7 @@ typedef struct nvmlVgpuSchedulerLog_st
 {
     unsigned int                engineId;                                       //!< Engine whose software runlist log entries are fetched
     unsigned int                schedulerPolicy;                                //!< Scheduler policy
-    unsigned int                isEnabledARR;                                   //!< Flag to check Adaptive Round Robin scheduler mode
+    unsigned int                arrMode;                                        //!< Adaptive Round Robin scheduler mode. One of the NVML_VGPU_SCHEDULER_ARR_*.
     nvmlVgpuSchedulerParams_t   schedulerParams;
     unsigned int                entriesCount;                                   //!< Count of log entries fetched
     nvmlVgpuSchedulerLogEntry_t logEntries[NVML_SCHEDULER_SW_MAX_LOG_ENTRIES];
@@ -1271,7 +1257,7 @@ typedef struct nvmlVgpuSchedulerLog_st
 typedef struct nvmlVgpuSchedulerGetState_st
 {
     unsigned int                schedulerPolicy;    //!< Scheduler policy
-    unsigned int                isEnabledARR;       //!< Flag to check Adaptive Round Robin scheduler mode
+    unsigned int                arrMode;            //!< Adaptive Round Robin scheduler mode. One of the NVML_VGPU_SCHEDULER_ARR_*.
     nvmlVgpuSchedulerParams_t   schedulerParams;
 } nvmlVgpuSchedulerGetState_t;
 
@@ -1299,7 +1285,7 @@ typedef union
 typedef struct nvmlVgpuSchedulerSetState_st
 {
     unsigned int                    schedulerPolicy;    //!< Scheduler policy
-    unsigned int                    enableARRMode;      //!< Flag to enable/disable Adaptive Round Robin scheduler
+    unsigned int                    enableARRMode;      //!< Adaptive Round Robin scheduler
     nvmlVgpuSchedulerSetParams_t    schedulerParams;
 } nvmlVgpuSchedulerSetState_t;
 
@@ -5427,7 +5413,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetBridgeChipInfo(nvmlDevice_t device, nvmlBridge
  *
  * @see \ref nvmlSystemGetProcessName
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses_v3(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 
 /**
  * Get information about processes with a graphics context on a device
@@ -5470,7 +5456,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses_v3(nvmlDevice_t device
  *
  * @see \ref nvmlSystemGetProcessName
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses_v3(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 
 /**
  * Get information about processes with a MPS compute context on a device
@@ -5513,7 +5499,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses_v3(nvmlDevice_t devic
  *
  * @see \ref nvmlSystemGetProcessName
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses_v3(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 
 /**
  * Check if the GPU devices are on the same physical board.
@@ -8469,6 +8455,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuSchedulerLog(nvmlDevice_t device, nvmlVgpu
 
 /**
  * Returns the vGPU scheduler state.
+ * The information returned in \a nvmlVgpuSchedulerGetState_t is not relevant if the BEST EFFORT policy is set.
  *
  * For Pascal &tm; or newer fully supported devices.
  *
@@ -8513,7 +8500,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuSchedulerCapabilities(nvmlDevice_t device,
  *
  * The scheduler state change won't persist across module load/unload.
  * Scheduler state and params will be allowed to set only when no VM is running.
- * In \a nvmlVgpuSchedulerSetState_t, IFF enableARRMode=1 then
+ * In \a nvmlVgpuSchedulerSetState_t, IFF enableARRMode is enabled then
  * provide avgFactorForARR and frequency as input. If enableARRMode is disabled
  * then provide timeslice as input.
  *
@@ -10117,11 +10104,8 @@ nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data
 nvmlReturn_t DECLDIR nvmlDeviceGetAttributes(nvmlDevice_t device, nvmlDeviceAttributes_t *attributes);
 nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
 nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v1_t *infos);
-nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v2_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v1_t *infos);
-nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v2_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v1_t *infos);
-nvmlReturn_t DECLDIR nvmlDeviceGetMPSComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_v2_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstancePossiblePlacements(nvmlDevice_t device, unsigned int profileId, nvmlGpuInstancePlacement_t *placements, unsigned int *count);
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetLicenseInfo(nvmlVgpuInstance_t vgpuInstance, nvmlVgpuLicenseInfo_t *licenseInfo);
 #endif // #ifdef NVML_NO_UNVERSIONED_FUNC_DEFS
