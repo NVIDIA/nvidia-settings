@@ -94,6 +94,8 @@ static const struct wl_output_listener output_listener = {
     .scale    = output_scale,
 };
 
+#define min_helper(a,b) ((a) > (b) ? (b) : (a))
+
 static void registry_handle_global(void *data_in, struct wl_registry *registry,
                                    uint32_t name, const char *interface,
                                    uint32_t version)
@@ -101,6 +103,7 @@ static void registry_handle_global(void *data_in, struct wl_registry *registry,
     wayland_data *data = (wayland_data*)data_in;
 
     if (strcmp(interface, "wl_output") == 0) {
+        version = min_helper(version, 3);
         wayland_output_info *output;
         output = calloc(1, sizeof(wayland_output_info));
         output->name = name;
