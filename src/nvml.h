@@ -7584,7 +7584,8 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v4(nvmlDevice_t device,
  * Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer pointed at
  * by \a utilization. One utilization sample structure is returned per process running, that had some non-zero utilization
  * during the last sample period. It includes the CPU timestamp at which  the samples were recorded. Individual utilization values
- * are returned as "unsigned int" values.
+ * are returned as "unsigned int" values. If no valid sample entries are found since the lastSeenTimeStamp, NVML_ERROR_NOT_FOUND
+ * is returned.
  *
  * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
  * \a utilization set to NULL. The caller should allocate a buffer of size
