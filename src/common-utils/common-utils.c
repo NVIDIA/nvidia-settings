@@ -65,26 +65,26 @@ void *nvalloc(size_t size)
 
 
 /*
- * nvstrcat() - allocate a new string, copying all given strings
+ * nvvstrcat() - allocate a new string, copying all given strings
  * into it.
  */
 
-char *nvstrcat(const char *str, ...)
+char *nvvstrcat(const char *str, va_list ap)
 {
     const char *s;
     char *result;
     size_t len;
-    va_list ap;
+    va_list ap2;
 
     /* walk the varargs to compute the length of the result string */
 
-    va_start(ap, str);
+    va_copy(ap2, ap);
 
-    for (s = str, len = 1; s; s = va_arg(ap, char *)) {
+    for (s = str, len = 1; s; s = va_arg(ap2, char *)) {
         len += strlen(s);
     }
 
-    va_end(ap);
+    va_end(ap2);
 
     /* allocate the result string */
 
@@ -96,18 +96,30 @@ char *nvstrcat(const char *str, ...)
 
     /* concatenate the input strings, writing into the result string */
 
-    va_start(ap, str);
-
     for (s = str; s; s = va_arg(ap, char *)) {
         strcat(result, s);
     }
-
-    va_end(ap);
 
     return result;
 } /* nvstrcat() */
 
 
+/*
+ * nvstrcat() - allocate a new string, copying all given strings
+ * into it.
+ */
+
+char *nvstrcat(const char *str, ...)
+{
+    va_list ap;
+    char *ret;
+
+    va_start(ap, str);
+    ret = nvvstrcat(str, ap);
+    va_end(ap);
+
+    return ret;
+}
 
 /*
  * nvrealloc() - realloc wrapper that checks for errors; if an error

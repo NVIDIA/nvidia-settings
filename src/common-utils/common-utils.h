@@ -53,6 +53,7 @@
 
 void *nvalloc(size_t size);
 char *nvstrcat(const char *str, ...);
+char *nvvstrcat(const char *str, va_list ap);
 void *nvrealloc(void *ptr, size_t size);
 char *nvstrdup(const char *s);
 char *nvstrndup(const char *s, size_t n);

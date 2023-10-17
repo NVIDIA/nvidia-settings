@@ -48,6 +48,7 @@
 
 enum {
    RULE_FEATURE_PROCNAME,
+   RULE_FEATURE_COMMNAME,
    RULE_FEATURE_CMDLINE,
    RULE_FEATURE_DSO,
    RULE_FEATURE_TRUE,
@@ -55,14 +56,16 @@ enum {
 };
 
 static const char *rule_feature_label_strings[] = {
-    "Process Name (procname)",      // RULE_FEATURE_PROCNAME
-    "Command line name (cmdline)",  // RULE_FEATURE_CMDLINE
-    "Shared Object Name (dso)",     // RULE_FEATURE_DSO
-    "Always Applies (true)"         // RULE_FEATURE_TRUE
+    "Process Name (procname)",                      // RULE_FEATURE_PROCNAME
+    "Command Name (commname)",                      // RULE_FEATURE_COMMNAME
+    "Command line name (cmdline)",              // RULE_FEATURE_CMDLINE
+    "Shared Object Name (dso)",                     // RULE_FEATURE_DSO
+    "Always Applies (true)"                         // RULE_FEATURE_TRUE
 };
 
 static const char *rule_feature_identifiers[] = {
     "procname",                     // RULE_FEATURE_PROCNAME
+    "commname",                     // RULE_FEATURE_COMMNAME
     "cmdline",                      // RULE_FEATURE_CMDLINE
     "dso",                          // RULE_FEATURE_DSO
     "true"                          // RULE_FEATURE_TRUE
@@ -75,6 +78,8 @@ static const char *rule_feature_help_text[] = {
     "against the pathname of the current process with the leading directory components removed, "
     "and match if they are equal.", // RULE_FEATURE_PROCNAME
     "Patterns using this feature compare the string provided by the " MATCHES_INPUT_DESCRIPTION " "
+    "against the commandname of the current process, as stored in /proc/self/comm.", // RULE_FEATURE_COMMNAME
+    "Patterns using this feature compare the string provided by " MATCHES_INPUT_DESCRIPTION " "
     "against the argument 0 of the command line for the current process, as stored in "
     "/proc/self/cmdline (with leading directory components removed, separated by slashes and "
     "backslashes).", // RULE_FEATURE_CMDLINE

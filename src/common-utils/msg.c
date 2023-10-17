@@ -44,7 +44,7 @@
 
 static NvVerbosity __verbosity = NV_VERBOSITY_DEFAULT;
 
-NvVerbosity nv_get_verbosity()
+NvVerbosity nv_get_verbosity(void)
 {
     return __verbosity;
 }
