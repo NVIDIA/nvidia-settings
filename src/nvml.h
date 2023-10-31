@@ -525,6 +525,7 @@ typedef enum nvmlValueType_enum
     NVML_VALUE_TYPE_UNSIGNED_LONG = 2,
     NVML_VALUE_TYPE_UNSIGNED_LONG_LONG = 3,
     NVML_VALUE_TYPE_SIGNED_LONG_LONG = 4,
+    NVML_VALUE_TYPE_SIGNED_INT = 5,
 
     // Keep this last
     NVML_VALUE_TYPE_COUNT
@@ -537,6 +538,7 @@ typedef enum nvmlValueType_enum
 typedef union nvmlValue_st
 {
     double dVal;                    //!< If the value is double
+    int siVal;                      //!< If the value is signed long long
     unsigned int uiVal;             //!< If the value is unsigned int
     unsigned long ulVal;            //!< If the value is unsigned long
     unsigned long long ullVal;      //!< If the value is unsigned long long
@@ -1752,7 +1754,17 @@ typedef struct nvmlGpuDynamicPstatesInfo_st
 #define NVML_FI_DEV_POWER_AVERAGE                     185 //!< GPU power averaged over 1 sec interval, supported on Ampere (except GA100) or newer architectures.
 #define NVML_FI_DEV_POWER_INSTANT                     186 //!< Current GPU power, supported on all architectures.
 
-#define NVML_FI_MAX 187 //!< One greater than the largest field ID defined above
+/**
+ * GPU T.Limit temperature thresholds in degree Celsius
+ *
+ * These fields are supported on Ada and later architectures and supersedes \ref nvmlDeviceGetTemperatureThreshold.
+ */
+#define NVML_FI_DEV_TEMPERATURE_SHUTDOWN_TLIMIT       193 //!< T.Limit temperature after which GPU may shut down for HW protection
+#define NVML_FI_DEV_TEMPERATURE_SLOWDOWN_TLIMIT       194 //!< T.Limit temperature after which GPU may begin HW slowdown
+#define NVML_FI_DEV_TEMPERATURE_MEM_MAX_TLIMIT        195 //!< T.Limit temperature after which GPU may begin SW slowdown due to memory temperature
+#define NVML_FI_DEV_TEMPERATURE_GPU_MAX_TLIMIT        196 //!< T.Limit temperature after which GPU may be throttled below base clock
+
+#define NVML_FI_MAX 197 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
@@ -4132,6 +4144,14 @@ nvmlReturn_t DECLDIR nvmlDeviceGetTemperature(nvmlDevice_t device, nvmlTemperatu
  * For Kepler &tm; or newer fully supported devices.
  *
  * See \ref nvmlTemperatureThresholds_t for details on available temperature thresholds.
+ *
+ * Note: This API is no longer the preferred interface for retrieving the following temperature thresholds
+ * on Ada and later architectures: NVML_TEMPERATURE_THRESHOLD_SHUTDOWN, NVML_TEMPERATURE_THRESHOLD_SLOWDOWN,
+ * NVML_TEMPERATURE_THRESHOLD_MEM_MAX and NVML_TEMPERATURE_THRESHOLD_GPU_MAX.
+ *
+ * Support for reading these temperature thresholds for Ada and later architectures would be removed from this
+ * API in future releases. Please use \ref nvmlDeviceGetFieldValues with NVML_FI_DEV_TEMPERATURE_* fields to retrieve
+ * temperature thresholds on these architectures.
  *
  * @param device                               The identifier of the target device
  * @param thresholdType                        The type of threshold value queried
