@@ -2241,8 +2241,10 @@ typedef struct nvmlAccountingStats_st {
  */
 typedef enum nvmlEncoderQueryType_enum
 {
-    NVML_ENCODER_QUERY_H264 = 0,        //!< H264 encoder
-    NVML_ENCODER_QUERY_HEVC = 1         //!< HEVC encoder
+    NVML_ENCODER_QUERY_H264     = 0x00,        //!< H264 encoder
+    NVML_ENCODER_QUERY_HEVC     = 0x01,        //!< HEVC encoder
+    NVML_ENCODER_QUERY_AV1      = 0x02,        //!< AV1 encoder
+    NVML_ENCODER_QUERY_UNKNOWN  = 0xFF         //!< Unknown encoder
 }nvmlEncoderType_t;
 
 /**
@@ -3630,6 +3632,27 @@ nvmlReturn_t DECLDIR nvmlDeviceGetInforomConfigurationChecksum(nvmlDevice_t devi
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceValidateInforom(nvmlDevice_t device);
+
+/**
+ * Retrieves the timestamp and the duration of the last flush of the BBX (blackbox) infoROM object during the current run.
+ *
+ * For all products with an inforom.
+ *
+ * @param device                               The identifier of the target device
+ * @param timestamp                            The start timestamp of the last BBX Flush
+ * @param durationUs                           The duration (us) of the last BBX Flush
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a timestamp and \a durationUs are successfully retrieved
+ *         - \ref NVML_ERROR_NOT_READY         if the BBX object has not been flushed yet
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not have an infoROM
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ *
+ * @see nvmlDeviceGetInforomVersion
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetLastBBXFlushTime(nvmlDevice_t device, unsigned long long *timestamp,
+                                                   unsigned long *durationUs);
 
 /**
  * Retrieves the display mode for the device.
