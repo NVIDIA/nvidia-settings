@@ -104,9 +104,10 @@ static void registry_handle_global(void *data_in, struct wl_registry *registry,
         wayland_output_info *output;
         output = calloc(1, sizeof(wayland_output_info));
         output->name = name;
-        output->version = version;
+        output->version = 2;
         output->output = wl_registry_bind(data->registry, name,
-                                          &wl_output_interface, version);
+                                          &wl_output_interface,
+                                          output->version);
         wl_output_add_listener(output->output,
                                           &output_listener,
                                           output);
