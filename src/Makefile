@@ -35,8 +35,6 @@ include $(XNVCTRL_DIR)/xnvctrl.mk
 # assign default values if they are not exported by the caller
 ##############################################################################
 
-PKG_CONFIG            ?= pkg-config
-
 ifndef WAYLAND_AVAILABLE
   WAYLAND_AVAILABLE := $(shell $(PKG_CONFIG) --exists wayland-client && echo 1)
 endif
@@ -285,15 +283,6 @@ endif
 ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
   $(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
 endif
-
-define BINARY_DATA_HEADER_RULE
-  $$(OUTPUTDIR)/$(notdir $(1)).h:
-	$(at_if_quiet)$(MKDIR) $$(OUTPUTDIR)
-	$(at_if_quiet){ \
-	  $$(PRINTF) "extern const char _binary_$(subst .,_,$(notdir $(1)))_start[];\n"; \
-	  $$(PRINTF) "extern const char _binary_$(subst .,_,$(notdir $(1)))_end[];\n"; \
-	} > $$@
-endef
 
 ##############################################################################
 # build rules

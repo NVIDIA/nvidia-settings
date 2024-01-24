@@ -16,9 +16,19 @@ COMMON_UTILS_EXTRA_DIST += src.mk
 # prevent other programs from needing to set the right CFLAGS/LDFLAGS for code
 # they won't use. Otherwise, just package it in the source tarball.
 ifneq ($(COMMON_UTILS_PCIACCESS),)
-    COMMON_UTILS_SRC        += nvpci-utils.c
+  COMMON_UTILS_SRC += nvpci-utils.c
+
+  ifndef PCIACCESS_CFLAGS
+    PCIACCESS_CFLAGS := $(shell $(PKG_CONFIG) --cflags pciaccess)
+  endif
+
+  ifndef PCIACCESS_LDFLAGS
+    PCIACCESS_LDFLAGS := $(shell $(PKG_CONFIG) --libs pciaccess)
+  endif
+
+  $(call BUILD_OBJECT_LIST,nvpci-utils.c): CFLAGS += $(PCIACCESS_CFLAGS)
 else
-    COMMON_UTILS_EXTRA_DIST += nvpci-utils.c
+  COMMON_UTILS_EXTRA_DIST += nvpci-utils.c
 endif
 COMMON_UTILS_EXTRA_DIST += nvpci-utils.h
 

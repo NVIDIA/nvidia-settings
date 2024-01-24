@@ -27,15 +27,12 @@
 # assign default values if they are not exported by the caller
 
 ifndef XNVCTRL_LDFLAGS
-  ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
-    XNVCTRL_LDFLAGS = -L/usr/X11R6/lib64
-  else
-    XNVCTRL_LDFLAGS = -L/usr/X11R6/lib
-  endif
+  XNVCTRL_LDFLAGS := $(shell $(PKG_CONFIG) --libs x11)
 endif
 
-XNVCTRL_CFLAGS ?=
-
+ifndef XNVCTRL_CFLAGS
+  XNVCTRL_CFLAGS := $(shell $(PKG_CONFIG) --cflags x11)
+endif
 
 LIBXNVCTRL = $(OUTPUTDIR)/libXNVCtrl.a
 
