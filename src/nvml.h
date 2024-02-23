@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2024 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -1418,6 +1418,29 @@ typedef struct nvmlGridLicensableFeatures_st
     unsigned int                licensableFeaturesCount;                                      //!< Entries returned in \a gridLicensableFeatures array
     nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];  //!< Array of vGPU software licensable features.
 } nvmlGridLicensableFeatures_t;
+
+/**
+ * Structure to store SRAM uncorrectable error counters
+ */
+typedef struct
+{
+    unsigned int version;                                   //!< the API version number
+    unsigned long long aggregateUncParity;                  //!< aggregate uncorrectable parity error count
+    unsigned long long aggregateUncSecDed;                  //!< aggregate uncorrectable SEC-DED error count
+    unsigned long long aggregateCor;                        //!< aggregate correctable error count
+    unsigned long long volatileUncParity;                   //!< volatile uncorrectable parity error count
+    unsigned long long volatileUncSecDed;                   //!< volatile uncorrectable SEC-DED error count
+    unsigned long long volatileCor;                         //!< volatile correctable error count
+    unsigned long long aggregateUncBucketL2;                //!< aggregate uncorrectable error count for L2 cache bucket
+    unsigned long long aggregateUncBucketSm;                //!< aggregate uncorrectable error count for SM bucket
+    unsigned long long aggregateUncBucketPcie;              //!< aggregate uncorrectable error count for PCIE bucket
+    unsigned long long aggregateUncBucketMcu;               //!< aggregate uncorrectable error count for Microcontroller bucket
+    unsigned long long aggregateUncBucketOther;             //!< aggregate uncorrectable error count for Other bucket
+    unsigned int bThresholdExceeded;                        //!< if the error threshold of field diag is exceeded
+} nvmlEccSramErrorStatus_v1_t;
+ 
+typedef nvmlEccSramErrorStatus_v1_t nvmlEccSramErrorStatus_t;
+#define nvmlEccSramErrorStatus_v1 NVML_STRUCT_VERSION(EccSramErrorStatus, 1)
 
 /**
  * GSP firmware
@@ -10200,6 +10223,29 @@ nvmlReturn_t DECLDIR nvmlSystemGetNvlinkBwMode(unsigned int *nvlinkBwMode);
  * @see NVML_FI_DEV_POWER_CURRENT_LIMIT
  */
 nvmlReturn_t DECLDIR nvmlDeviceSetPowerManagementLimit_v2(nvmlDevice_t device, nvmlPowerValue_v2_t *powerValue);
+
+/**
+ * Get SRAM ECC error status of this device.
+ *
+ * For Ampere &tm; or newer fully supported devices.
+ * Requires root/admin permissions.
+ *
+ * See \ref nvmlEccSramErrorStatus_v1_t for more information on the struct.
+ *
+ * @param device                               The identifier of the target device
+ * @param status                               Returns SRAM ECC error status
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a limit has been set
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a counters is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_VERSION_MISMATCH  if the version of \a nvmlEccSramErrorStatus_t is invalid
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetSramEccErrorStatus(nvmlDevice_t device,
+                                                     nvmlEccSramErrorStatus_t *status);
 
 /**
  * NVML API versioning support
