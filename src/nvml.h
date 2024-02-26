@@ -1186,6 +1186,7 @@ typedef enum nvmlDeviceVgpuCapability_enum
     NVML_DEVICE_VGPU_CAP_WRITE_DEVICE_BUFFER_BW           = 4,    //!< Query the GPU's write_device_buffer expected bandwidth capacity in megabytes per second
     NVML_DEVICE_VGPU_CAP_DEVICE_STREAMING                 = 5,    //!< Query if vGPU profiles on the GPU supports migration data streaming
     NVML_DEVICE_VGPU_CAP_MINI_QUARTER_GPU                 = 6,    //!< Set/Get support for mini-quarter vGPU profiles
+    NVML_DEVICE_VGPU_CAP_COMPUTE_MEDIA_ENGINE_GPU         = 7,    //!< Set/Get support for compute media engine vGPU profiles
     // Keep this last
     NVML_DEVICE_VGPU_CAP_COUNT
 } nvmlDeviceVgpuCapability_t;
@@ -2579,6 +2580,26 @@ typedef struct nvmlConfComputeSystemState_st {
     unsigned int ccFeature;
     unsigned int devToolsMode;
 } nvmlConfComputeSystemState_t;
+
+/**
+ * Confidential Compute Multigpu mode values
+ */
+#define NVML_CC_SYSTEM_MULTIGPU_NONE 0
+#define NVML_CC_SYSTEM_MULTIGPU_PROTECTED_PCIE 1
+ 
+/**
+ * Confidential Compute System settings
+ */
+typedef struct {
+    unsigned int version;
+    unsigned int environment;
+    unsigned int ccFeature;
+    unsigned int devToolsMode;
+    unsigned int multiGpuMode;
+} nvmlSystemConfComputeSettings_v1_t;
+
+typedef nvmlSystemConfComputeSettings_v1_t nvmlSystemConfComputeSettings_t;
+#define nvmlSystemConfComputeSettings_v1 NVML_STRUCT_VERSION(SystemConfComputeSettings, 1)
 
 /**
  * Protected memory size
@@ -6204,6 +6225,25 @@ nvmlReturn_t DECLDIR nvmlDeviceGetConfComputeGpuAttestationReport(nvmlDevice_t d
  */
 nvmlReturn_t DECLDIR nvmlSystemGetConfComputeKeyRotationThresholdInfo(
                           nvmlConfComputeGetKeyRotationThresholdInfo_t *pKeyRotationThrInfo);
+
+/**
+ * Get Conf Computing System Settings.
+ *
+ * %HOPPER_OR_NEWER%
+ * Supported on Linux, Windows TCC.
+ *
+ * @param settings                                     System CC settings
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                         if the query is success
+ *         - \ref NVML_ERROR_UNINITIALIZED             if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT          if \a device is invalid or \a counters is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED             if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST               if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_ARGUMENT_VERSION_MISMATCH if the provided version is invalid/unsupported
+ *         - \ref NVML_ERROR_UNKNOWN                   on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlSystemGetConfComputeSettings(nvmlSystemConfComputeSettings_t *settings);
 
 /**
  * Retrieve GSP firmware version.
