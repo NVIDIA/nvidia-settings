@@ -148,7 +148,7 @@ static void update_layout(CtkDisplayConfig *ctk_object);
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_TWINVIEW 1
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_XSCREEN  2
 
-#define MIN_LAYOUT_SCREENSIZE 600
+#define MIN_LAYOUT_SCREENSIZE 700
 typedef struct SwitchModeCallbackInfoRec {
     CtkDisplayConfig *ctk_object;
     int screen;
@@ -8756,7 +8756,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         if (screen->primaryDisplay && ctk_object->primary_display_changed) {
             ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                            NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
-                                           screen->primaryDisplay->typeIdName);
+                                           screen->primaryDisplay->randrName);
             if (ret != NvCtrlSuccess) {
                 nv_error_msg("Failed to set primary display for screen %d",
                              screen->scrnum);
@@ -9210,7 +9210,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
         if (screen->primaryDisplay) {
             xconfigAddNewOption(&conf_screen->options,
                                 "nvidiaXineramaInfoOrder",
-                                screen->primaryDisplay->typeIdName);
+                                screen->primaryDisplay->randrName);
         }
 
         /* Create the "metamode" option string. */
