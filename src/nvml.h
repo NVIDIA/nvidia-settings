@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2023 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2024 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -761,6 +761,8 @@ typedef enum nvmlTemperatureThresholds_enum
                                                   // acoustic threshold.
     NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_MAX  = 6, // Maximum GPU temperature that can be
                                                   // set as acoustic threshold.
+    NVML_TEMPERATURE_THRESHOLD_GPS_CURR      = 7, // Current temperature that is set as
+                                                  // gps threshold.
     // Keep this last
     NVML_TEMPERATURE_THRESHOLD_COUNT
 } nvmlTemperatureThresholds_t;
