@@ -594,7 +594,7 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     int x, count = 0;
     GtkWidget *vbox, *hbox;
     GtkWidget *table;
-    GtkWidget *label, *hseparator;
+    GtkWidget *label, *hseparator, *scrollWin;
     GtkWidget *eventbox;
 
     /* Add Decoder capabilities */
@@ -602,11 +602,19 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     vbox      = gtk_vbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
-    gtk_container_add(GTK_CONTAINER(eventbox), vbox);
+
+    scrollWin = gtk_scrolled_window_new(NULL, NULL);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(eventbox), hbox);
+    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
+                                          eventbox);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
 
     /* Add tab to notebook */
 
-    gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), eventbox,
+    gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), scrollWin,
                              gtk_label_new("Decoder Limits"));
 
     /* Generate a new table */
