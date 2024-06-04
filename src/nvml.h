@@ -1606,7 +1606,7 @@ typedef struct
     unsigned long long aggregateUncBucketOther;             //!< aggregate uncorrectable error count for Other bucket
     unsigned int bThresholdExceeded;                        //!< if the error threshold of field diag is exceeded
 } nvmlEccSramErrorStatus_v1_t;
- 
+
 typedef nvmlEccSramErrorStatus_v1_t nvmlEccSramErrorStatus_t;
 #define nvmlEccSramErrorStatus_v1 NVML_STRUCT_VERSION(EccSramErrorStatus, 1)
 
@@ -2020,7 +2020,10 @@ typedef struct nvmlGpuDynamicPstatesInfo_st
 
 #define NVML_FI_DEV_IS_MIG_MODE_INDEPENDENT_MIG_QUERY_CAPABLE   199 //!< MIG mode independent, MIG query capable device. 1=yes. 0=no.
 
-#define NVML_FI_MAX                                   200 //!< One greater than the largest field ID defined above
+#define NVML_FI_DEV_RESET_STATUS                                 226 //!< GPU reset status
+#define NVML_FI_DEV_DRAIN_AND_RESET_STATUS                       227 //!< GPU drain and reset status
+
+#define NVML_FI_MAX                                       228 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
@@ -2588,7 +2591,7 @@ typedef struct nvmlConfComputeSystemState_st {
  */
 #define NVML_CC_SYSTEM_MULTIGPU_NONE 0
 #define NVML_CC_SYSTEM_MULTIGPU_PROTECTED_PCIE 1
- 
+
 /**
  * Confidential Compute System settings
  */
@@ -2641,7 +2644,7 @@ typedef struct nvmlConfComputeGpuCertificate_st {
 #define NVML_CC_CEC_ATTESTATION_REPORT_NOT_PRESENT 0
 #define NVML_CC_CEC_ATTESTATION_REPORT_PRESENT 1
 #define NVML_CC_KEY_ROTATION_THRESHOLD_ATTACKER_ADVANTAGE_MIN 50
-#define NVML_CC_KEY_ROTATION_THRESHOLD_ATTACKER_ADVANTAGE_MAX 75
+#define NVML_CC_KEY_ROTATION_THRESHOLD_ATTACKER_ADVANTAGE_MAX 65
 
 typedef struct nvmlConfComputeGpuAttestationReport_st {
     unsigned int isCecAttestationReportPresent;
