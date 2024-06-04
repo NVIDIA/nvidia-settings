@@ -1855,7 +1855,10 @@ typedef struct nvmlGpuDynamicPstatesInfo_st
 #define NVML_FI_DEV_TEMPERATURE_MEM_MAX_TLIMIT        195 //!< T.Limit temperature after which GPU may begin SW slowdown due to memory temperature
 #define NVML_FI_DEV_TEMPERATURE_GPU_MAX_TLIMIT        196 //!< T.Limit temperature after which GPU may be throttled below base clock
 
-#define NVML_FI_MAX                                   197 //!< One greater than the largest field ID defined above
+#define NVML_FI_DEV_RESET_STATUS                      226 //!< GPU reset status
+#define NVML_FI_DEV_DRAIN_AND_RESET_STATUS            227 //!< GPU drain and reset status
+
+#define NVML_FI_MAX                                   228 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
