@@ -292,6 +292,7 @@ Options *parse_command_line(int argc, char *argv[],
         case CONFIG_FILE_OPTION: op->config = strval; break;
         case 'g': print_glxinfo(NULL, systems); exit(0); break;
         case 'E': print_eglinfo(NULL, systems); exit(0); break;
+        case 'k': print_vulkaninfo(NULL, systems); exit(0); break;
         case 't': op->terse = NV_TRUE; break;
         case 'd': op->dpy_string = NV_TRUE; break;
         case 'e': print_attribute_help(strval); exit(0); break;

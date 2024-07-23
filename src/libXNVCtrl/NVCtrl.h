@@ -2179,6 +2179,8 @@
  * DisplayPort main link.  The numerical value of this attribute is the link
  * rate in bps divided by 27000000.
  * This attribute is only available for DisplayPort flat panels.
+ * This attribute is deprecated, use NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
+ * instead.
  */
 
 #define NV_CTRL_DISPLAYPORT_LINK_RATE                           291 /* R-DG */
@@ -2672,6 +2674,8 @@
 #define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
 #define NV_CTRL_GPU_PCIE_GENERATION3                            0x00000003
 #define NV_CTRL_GPU_PCIE_GENERATION4                            0x00000004
+#define NV_CTRL_GPU_PCIE_GENERATION5                            0x00000005
+#define NV_CTRL_GPU_PCIE_GENERATION6                            0x00000006
 
 /*
  * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of
@@ -3669,7 +3673,16 @@
  */
 #define NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED                      442 /* R-DG */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
+/*
+ * NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ - returns the negotiated lane bandwidth
+ * of the DisplayPort main link. The numerical value of this attribute is the
+ * link rate in bps divided by 1000000. This attribute is only available for
+ * DisplayPort flat panels.
+ */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ                     443 /* R-DG */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ_DISABLED            0x0
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
 
 /**************************************************************************/
 

@@ -367,18 +367,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* Allocate handle for ctrl_display */
-
-    NvCtrlConnectToSystem(op->ctrl_display, &systems);
-
-    /* process any query or assignment commandline options */
+    /* process any query or assignment commandline options and exit. */
 
     if (op->num_assignments || op->num_queries) {
         ret = nv_process_assignments_and_queries(op, &systems);
         NvCtrlFreeAllSystems(&systems);
         return ret ? 0 : 1;
     }
-    
+
+    /* Allocate handle for ctrl_display for gui */
+
+    NvCtrlConnectToSystem(op->ctrl_display, &systems);
+
     /* initialize the parsed attribute list */
 
     p = nv_parsed_attribute_init();

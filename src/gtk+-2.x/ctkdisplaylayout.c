@@ -3427,6 +3427,21 @@ static void draw_display(CtkDisplayLayout *ctk_object,
         return;
     }
 
+    /* If the display is disabled and there is a prime display with the same
+     * name, don't draw it since it is already represented.
+     */
+    if (!display->screen && ctk_object->layout) {
+        int i;
+        for (i = 0; i < ctk_object->layout->num_prime_displays; i++) {
+            if (ctk_object->layout->prime_displays[i].label &&
+                strcmp(ctk_object->layout->prime_displays[i].label,
+                       display->randrName) == 0) {
+                return;
+            }
+        }
+    }
+
+
     mode = display->cur_mode;
     base_color_idx =
         NUM_COLORS_PER_PALETTE * NvCtrlGetTargetId(display->gpu->ctrl_target);

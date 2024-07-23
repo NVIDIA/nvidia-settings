@@ -770,10 +770,10 @@ static gboolean update_link_info(InfoEntry *entry)
 
         lanes = val + 1;
 
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DISPLAYPORT_LINK_RATE,
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ,
                                  &val);
         if ((ret == NvCtrlSuccess) &&
-            (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
+            (val == NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ_DISABLED)) {
             link = "Disabled";
         } else {
             if (ret != NvCtrlSuccess) {
@@ -783,7 +783,7 @@ static gboolean update_link_info(InfoEntry *entry)
             if (val > 0) {
                 snprintf(tmp, sizeof(tmp),
                          "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
-                         val * 0.27);
+                         val * 0.01);
             } else {
                 snprintf(tmp, sizeof(tmp),
                          "%d lane%s @ unknown bandwidth",
@@ -1085,7 +1085,7 @@ static gboolean register_link_events(InfoEntry *entry)
                      (gpointer) entry);
 
     g_signal_connect(G_OBJECT(ctk_object->ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
+                     CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ),
                      G_CALLBACK(callback_link_changed),
                      (gpointer) entry);
 

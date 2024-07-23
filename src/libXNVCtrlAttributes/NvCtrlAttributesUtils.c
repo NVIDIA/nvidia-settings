@@ -779,8 +779,20 @@ CtrlTarget *nv_add_target(CtrlSystem *system, CtrlTargetType target_type,
                           int target_id)
 {
     CtrlTarget *target;
-    target = nv_alloc_ctrl_target(system, target_type, target_id,
-                                  NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
+    int subsystems = NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS;
+
+    if (system->limit_subsystems) {
+
+        /* Only load subsystems with command line queries/assignments */
+        subsystems = NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM;
+    }
+
+    target = nv_alloc_ctrl_target(system, target_type, target_id, subsystems);
     if (!target) {
         return NULL;
     }
@@ -1074,13 +1086,15 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
  * initialize all the targets (GPUs, screens, Frame Lock devices, etc) found.
  */
 
-static CtrlSystem *nv_alloc_ctrl_system(const char *display)
+static CtrlSystem *nv_alloc_ctrl_system(const char *display,
+                                        Bool limit_subsystems)
 {
     CtrlSystem *system;
     Bool ret;
     int i;
 
     system = nvalloc(sizeof(*system));
+    system->limit_subsystems = limit_subsystems;
 
     /* Connect to the system and load target information */
 
@@ -1114,10 +1128,17 @@ static CtrlSystem *nv_alloc_ctrl_system(const char *display)
 
 CtrlSystem *NvCtrlConnectToSystem(const char *display, CtrlSystemList *systems)
 {
+    return NvCtrlConnectToLimitedSystem(display, systems, FALSE);
+}
+
+CtrlSystem *NvCtrlConnectToLimitedSystem(const char *display,
+                                         CtrlSystemList *systems,
+                                         Bool limit_subsystems)
+{
     CtrlSystem *system = NvCtrlGetSystem(display, systems);
 
     if (system == NULL) {
-        system = nv_alloc_ctrl_system(display);
+        system = nv_alloc_ctrl_system(display, limit_subsystems);
 
         if (system) {
             system->system_list = systems;

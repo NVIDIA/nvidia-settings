@@ -24,6 +24,7 @@
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
 #include <EGL/egl.h>
+#include <vulkan/vulkan.h>
 #include <X11/extensions/Xrandr.h> /* Xrandr */
 #include <nvml.h>
 
@@ -231,6 +232,8 @@ struct __NvCtrlAttributePrivateHandle {
     Bool glx;                       /* GLX extension available */
     Bool egl;                       /* EGL extension available */
     EGLDisplay egl_dpy;
+    Bool vulkan;                    /* Vulkan extension available */
+    VkInstance *vk_instance;
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
 
     /* NVML-specific attributes */
@@ -328,6 +331,18 @@ ReturnStatus NvCtrlEglGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
 ReturnStatus NvCtrlEglGetStringAttribute(const NvCtrlAttributePrivateHandle *,
                                          unsigned int, int, char **);
 Bool NvCtrlEglDelayedInit(NvCtrlAttributePrivateHandle *);
+
+/* Vulkan extension attribute functions */
+
+Bool NvCtrlInitVkAttributes(NvCtrlAttributePrivateHandle *);
+
+void NvCtrlVkAttributesClose(NvCtrlAttributePrivateHandle *);
+
+ReturnStatus NvCtrlVkGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
+                                      unsigned int, int, void **);
+
+ReturnStatus NvCtrlVkGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                        unsigned int, int, char **);
 
 /* XRandR extension attribute functions */
 

@@ -800,7 +800,7 @@ static int process_attribute_queries(const Options *op,
 
         /* connect to all the systems */
 
-        system = NvCtrlConnectToSystem(a.display, systems);
+        system = NvCtrlConnectToLimitedSystem(a.display, systems, TRUE);
         if (!system) {
             goto done;
         }
@@ -873,7 +873,7 @@ static int process_attribute_assignments(const Options *op,
 
         /* allocate the CtrlSystem */
 
-        system = NvCtrlConnectToSystem(a.display, systems);
+        system = NvCtrlConnectToLimitedSystem(a.display, systems, TRUE);
         if (!system) {
             goto done;
         }
@@ -1380,7 +1380,7 @@ static int query_all(const Options *op, const char *display_name,
     CtrlAttributeValidValues valid;
     CtrlSystem *system;
 
-    system = NvCtrlConnectToSystem(display_name, systems);
+    system = NvCtrlConnectToLimitedSystem(display_name, systems, TRUE);
     if (!system) {
         return NV_FALSE;
     }
@@ -1749,7 +1749,7 @@ static int query_all_targets(const char *display_name, const int target_type,
 
     /* create handles */
 
-    system = NvCtrlConnectToSystem(display_name, systems);
+    system = NvCtrlConnectToLimitedSystem(display_name, systems, TRUE);
     if (!system) {
         return NV_FALSE;
     }

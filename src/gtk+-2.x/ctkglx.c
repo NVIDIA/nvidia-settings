@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <ctype.h>
+#include <string.h>
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
@@ -39,6 +41,8 @@
 #define NUM_FBCONFIG_ATTRIBS  32
 #define NUM_EGL_FBCONFIG_ATTRIBS  32
 
+/* Indent size of Vulkan Info */
+#define INDENT_SIZE 28
 
 /* FBConfig tooltips */
 static const char * __show_fbc_help =
@@ -914,7 +918,627 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 
 
 
-/* Probes for Graphics information and sets up the results
+/*
+ * add_string_to_table()
+ */
+static void add_string_to_table(GtkWidget *table,
+                                const gint row,
+                                const gint col,
+                                const gchar *str)
+{
+    GtkWidget *label = gtk_label_new(str);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+    gtk_table_attach(GTK_TABLE(table), label, col, col + 1, row, row + 1,
+                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+}
+
+
+
+/*
+ * add_table_row_3() - add items to a table row with 3 columns
+ */
+static void add_table_row_3(GtkWidget *table,
+                            const gint row,
+                            const gchar *value1,
+                            const gchar *value2,
+                            const gchar *value3)
+{
+    add_string_to_table(table, row, 0, value1);
+    add_string_to_table(table, row, 1, value2);
+    add_string_to_table(table, row, 2, value3);
+}
+
+
+
+/*
+ * add_str_const() - Add label and value to a table.
+ */
+static void add_str_const(GtkWidget *table, int row,
+                          const char *str, const char *value)
+{
+    int i = 0;
+    while (isspace(value[i])) { i++; }
+    add_table_row(table, row,
+                  0, 0, str,
+                  0, 0, value + i);
+}
+
+
+
+/*
+ * add_str() - Add label and value to a table.
+ *
+ * NOTE - this function will free the string pointed to by value. Use
+ * add_str_const() to retain the string.
+ */
+static void add_str(GtkWidget *table, int row, const char *str, char *value)
+{
+    add_str_const(table, row, str, value);
+    nvfree(value);
+}
+
+
+
+/*
+ * populate_vulkan_device_properties() - Process Vulkan Device Properties
+ */
+static GtkWidget *populate_vulkan_device_properties(VkDeviceAttr *vkdp, int i)
+{
+    int row = 3;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Device Properties");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+    char *str = vulkan_get_version_string(
+                    vkdp->phy_device_properties[i].apiVersion);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    add_str_const(table, row++, "Device Name",
+                  vkdp->phy_device_properties[i].deviceName);
+    add_str_const(table, row++, "Device Type",
+                  vulkan_get_physical_device_type(
+                      vkdp->phy_device_properties[i].deviceType));
+    add_str(table, row++, "API Version", str);
+    add_str(table, row++, "Driver Version",
+            nvasprintf("%#x", vkdp->phy_device_properties[i].driverVersion));
+    add_str(table, row++, "Vendor ID",
+            nvasprintf("%#x", vkdp->phy_device_properties[i].vendorID));
+    add_str(table, row++, "Device ID",
+            nvasprintf("%#x", vkdp->phy_device_properties[i].deviceID));
+    if (vkdp->phy_device_uuid && vkdp->phy_device_uuid[i]) {
+        add_str_const(table, row++, "Device UUID", vkdp->phy_device_uuid[i]);
+    }
+    return expander;
+}
+
+
+
+/*
+ * populate_vulkan_device_extensions()
+ */
+static GtkWidget *populate_vulkan_device_extensions(VkDeviceAttr *vkdp, int d)
+{
+    int row = 2, j;
+    char *str;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Device Extensions");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    str = nvasprintf("%d", vkdp->device_extensions_count[d]);
+    add_str_const(table, row++, "Count:", str);
+    nvfree(str);
+
+    for (j = 0; j < vkdp->device_extensions_count[d]; j++) {
+        str = nvasprintf("Version: %d",
+                         vkdp->device_extensions[d][j].specVersion);
+
+        add_str_const(table, j+row,
+                      vkdp->device_extensions[d][j].extensionName,
+                      str);
+        nvfree(str);
+    }
+    return expander;
+}
+
+
+
+/*
+ * populate_vulkan_device_sparse_properties() - Process Vulkan Device Sparse
+ * Properties.
+ */
+static GtkWidget *populate_vulkan_device_sparse_properties(VkDeviceAttr *vkdp,
+                                                           int i)
+{
+    int row = 5;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Sparse Properties");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+#define PRINT_DEVICE_SPARSE_FEATURES(var)                                   \
+    add_str(table, row++, #var, nvasprintf("%s",                               \
+           vkdp->phy_device_properties[i].sparseProperties.var ? "yes" : "no"));
+    PRINT_DEVICE_SPARSE_FEATURES(residencyStandard2DBlockShape)
+    PRINT_DEVICE_SPARSE_FEATURES(residencyStandard2DMultisampleBlockShape)
+    PRINT_DEVICE_SPARSE_FEATURES(residencyStandard3DBlockShape)
+    PRINT_DEVICE_SPARSE_FEATURES(residencyAlignedMipSize)
+    PRINT_DEVICE_SPARSE_FEATURES(residencyNonResidentStrict)
+#undef PRINT_DEVICE_SPARSE_FEATURES
+
+    return expander;
+}
+
+
+
+/*
+ * populate_vulkan_device_limits() - Process Vulkan Device Limits.
+ */
+static GtkWidget *populate_vulkan_device_limits(VkDeviceAttr *vkdp, int i)
+{
+    int row = 5;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Limits");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+#define PRINT_DEVICE_LIMITS_U(var)   \
+    add_str(table, row++, #var,      \
+            nvasprintf("%u", vkdp->phy_device_properties[i].limits.var));
+#define PRINT_DEVICE_LIMITS_S(var)   \
+    add_str(table, row++, #var,      \
+            nvasprintf("%lu",        \
+                (unsigned long)vkdp->phy_device_properties[i].limits.var));
+#define PRINT_DEVICE_LIMITS_F(var)   \
+    add_str(table, row++, #var,      \
+            nvasprintf("%f", vkdp->phy_device_properties[i].limits.var));
+#define PRINT_DEVICE_LIMITS_Z(var)   \
+    add_str(table, row++, #var,      \
+            nvasprintf("%zu", vkdp->phy_device_properties[i].limits.var));
+
+    PRINT_DEVICE_LIMITS_U(maxImageDimension1D)
+    PRINT_DEVICE_LIMITS_U(maxImageDimension2D)
+    PRINT_DEVICE_LIMITS_U(maxImageDimension3D)
+    PRINT_DEVICE_LIMITS_U(maxImageDimensionCube)
+    PRINT_DEVICE_LIMITS_U(maxImageArrayLayers)
+    PRINT_DEVICE_LIMITS_U(maxTexelBufferElements)
+    PRINT_DEVICE_LIMITS_U(maxUniformBufferRange)
+    PRINT_DEVICE_LIMITS_U(maxStorageBufferRange)
+    PRINT_DEVICE_LIMITS_U(maxPushConstantsSize)
+    PRINT_DEVICE_LIMITS_U(maxMemoryAllocationCount)
+    PRINT_DEVICE_LIMITS_U(maxSamplerAllocationCount)
+    PRINT_DEVICE_LIMITS_S(bufferImageGranularity)
+    PRINT_DEVICE_LIMITS_S(sparseAddressSpaceSize)
+    PRINT_DEVICE_LIMITS_U(maxBoundDescriptorSets)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorSamplers)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorUniformBuffers)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorStorageBuffers)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorSampledImages)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorStorageImages)
+    PRINT_DEVICE_LIMITS_U(maxPerStageDescriptorInputAttachments)
+    PRINT_DEVICE_LIMITS_U(maxPerStageResources)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetSamplers)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetUniformBuffers)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetUniformBuffersDynamic)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetStorageBuffers)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetStorageBuffersDynamic)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetSampledImages)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetStorageImages)
+    PRINT_DEVICE_LIMITS_U(maxDescriptorSetInputAttachments)
+    PRINT_DEVICE_LIMITS_U(maxVertexInputAttributes)
+    PRINT_DEVICE_LIMITS_U(maxVertexInputBindings)
+    PRINT_DEVICE_LIMITS_U(maxVertexInputAttributeOffset)
+    PRINT_DEVICE_LIMITS_U(maxVertexInputBindingStride)
+    PRINT_DEVICE_LIMITS_U(maxVertexOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationGenerationLevel)
+    PRINT_DEVICE_LIMITS_U(maxTessellationPatchSize)
+    PRINT_DEVICE_LIMITS_U(maxTessellationControlPerVertexInputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationControlPerVertexOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationControlPerPatchOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationControlTotalOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationEvaluationInputComponents)
+    PRINT_DEVICE_LIMITS_U(maxTessellationEvaluationOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxGeometryShaderInvocations)
+    PRINT_DEVICE_LIMITS_U(maxGeometryInputComponents)
+    PRINT_DEVICE_LIMITS_U(maxGeometryOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxGeometryOutputVertices)
+    PRINT_DEVICE_LIMITS_U(maxGeometryTotalOutputComponents)
+    PRINT_DEVICE_LIMITS_U(maxFragmentInputComponents)
+    PRINT_DEVICE_LIMITS_U(maxFragmentOutputAttachments)
+    PRINT_DEVICE_LIMITS_U(maxFragmentDualSrcAttachments)
+    PRINT_DEVICE_LIMITS_U(maxFragmentCombinedOutputResources)
+    PRINT_DEVICE_LIMITS_U(maxComputeSharedMemorySize)
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupCount[0])
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupCount[1])
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupCount[2])
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupInvocations)
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupSize[0])
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupSize[1])
+    PRINT_DEVICE_LIMITS_U(maxComputeWorkGroupSize[2])
+    PRINT_DEVICE_LIMITS_U(subPixelPrecisionBits)
+    PRINT_DEVICE_LIMITS_U(subTexelPrecisionBits)
+    PRINT_DEVICE_LIMITS_U(mipmapPrecisionBits)
+    PRINT_DEVICE_LIMITS_U(maxDrawIndexedIndexValue)
+    PRINT_DEVICE_LIMITS_U(maxDrawIndirectCount)
+    PRINT_DEVICE_LIMITS_F(maxSamplerLodBias)
+    PRINT_DEVICE_LIMITS_F(maxSamplerAnisotropy)
+    PRINT_DEVICE_LIMITS_U(maxViewports)
+    PRINT_DEVICE_LIMITS_U(maxViewportDimensions[0])
+    PRINT_DEVICE_LIMITS_U(maxViewportDimensions[1])
+    PRINT_DEVICE_LIMITS_F(viewportBoundsRange[0])
+    PRINT_DEVICE_LIMITS_F(viewportBoundsRange[1])
+    PRINT_DEVICE_LIMITS_U(viewportSubPixelBits)
+    PRINT_DEVICE_LIMITS_Z(minMemoryMapAlignment)
+    PRINT_DEVICE_LIMITS_S(minTexelBufferOffsetAlignment)
+    PRINT_DEVICE_LIMITS_S(minUniformBufferOffsetAlignment)
+    PRINT_DEVICE_LIMITS_S(minStorageBufferOffsetAlignment)
+    PRINT_DEVICE_LIMITS_U(minTexelOffset)
+    PRINT_DEVICE_LIMITS_U(maxTexelOffset)
+    PRINT_DEVICE_LIMITS_U(minTexelGatherOffset)
+    PRINT_DEVICE_LIMITS_U(maxTexelGatherOffset)
+    PRINT_DEVICE_LIMITS_F(minInterpolationOffset)
+    PRINT_DEVICE_LIMITS_F(maxInterpolationOffset)
+    PRINT_DEVICE_LIMITS_U(subPixelInterpolationOffsetBits)
+    PRINT_DEVICE_LIMITS_U(maxFramebufferWidth)
+    PRINT_DEVICE_LIMITS_U(maxFramebufferHeight)
+    PRINT_DEVICE_LIMITS_U(maxFramebufferLayers)
+    PRINT_DEVICE_LIMITS_U(framebufferColorSampleCounts)
+    PRINT_DEVICE_LIMITS_U(framebufferDepthSampleCounts)
+    PRINT_DEVICE_LIMITS_U(framebufferStencilSampleCounts)
+    PRINT_DEVICE_LIMITS_U(framebufferNoAttachmentsSampleCounts)
+    PRINT_DEVICE_LIMITS_U(maxColorAttachments)
+    PRINT_DEVICE_LIMITS_U(sampledImageColorSampleCounts)
+    PRINT_DEVICE_LIMITS_U(sampledImageIntegerSampleCounts)
+    PRINT_DEVICE_LIMITS_U(sampledImageDepthSampleCounts)
+    PRINT_DEVICE_LIMITS_U(sampledImageStencilSampleCounts)
+    PRINT_DEVICE_LIMITS_U(storageImageSampleCounts)
+    PRINT_DEVICE_LIMITS_U(maxSampleMaskWords)
+    PRINT_DEVICE_LIMITS_U(timestampComputeAndGraphics)
+    PRINT_DEVICE_LIMITS_F(timestampPeriod)
+    PRINT_DEVICE_LIMITS_U(maxClipDistances)
+    PRINT_DEVICE_LIMITS_U(maxCullDistances)
+    PRINT_DEVICE_LIMITS_U(maxCombinedClipAndCullDistances)
+    PRINT_DEVICE_LIMITS_U(discreteQueuePriorities)
+    PRINT_DEVICE_LIMITS_F(pointSizeRange[0])
+    PRINT_DEVICE_LIMITS_F(pointSizeRange[1])
+    PRINT_DEVICE_LIMITS_F(lineWidthRange[0])
+    PRINT_DEVICE_LIMITS_F(lineWidthRange[1])
+    PRINT_DEVICE_LIMITS_F(pointSizeGranularity)
+    PRINT_DEVICE_LIMITS_F(lineWidthGranularity)
+    PRINT_DEVICE_LIMITS_U(strictLines)
+    PRINT_DEVICE_LIMITS_U(standardSampleLocations)
+    PRINT_DEVICE_LIMITS_S(optimalBufferCopyOffsetAlignment)
+    PRINT_DEVICE_LIMITS_S(optimalBufferCopyRowPitchAlignment)
+    PRINT_DEVICE_LIMITS_S(nonCoherentAtomSize)
+#undef PRINT_DEVICE_LIMITS_U
+#undef PRINT_DEVICE_LIMITS_S
+#undef PRINT_DEVICE_LIMITS_F
+#undef PRINT_DEVICE_LIMITS_Z
+
+    return expander;
+}
+
+
+
+/*
+ * populate_vulkan_device_features() - Process Vulkan Device Features.
+ */
+static GtkWidget *populate_vulkan_device_features(VkDeviceAttr *vkdp, int i)
+{
+    int row = 5;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Features");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+#define PRINT_DEVICE_FEATURE(var)  \
+    add_str_const(table, row++, #var, \
+                  (vkdp->features[i].var? "yes" : "no"));
+    PRINT_DEVICE_FEATURE(robustBufferAccess)
+    PRINT_DEVICE_FEATURE(fullDrawIndexUint32)
+    PRINT_DEVICE_FEATURE(imageCubeArray)
+    PRINT_DEVICE_FEATURE(independentBlend)
+    PRINT_DEVICE_FEATURE(geometryShader)
+    PRINT_DEVICE_FEATURE(tessellationShader)
+    PRINT_DEVICE_FEATURE(sampleRateShading)
+    PRINT_DEVICE_FEATURE(dualSrcBlend)
+    PRINT_DEVICE_FEATURE(logicOp)
+    PRINT_DEVICE_FEATURE(multiDrawIndirect)
+    PRINT_DEVICE_FEATURE(drawIndirectFirstInstance)
+    PRINT_DEVICE_FEATURE(depthClamp)
+    PRINT_DEVICE_FEATURE(depthBiasClamp)
+    PRINT_DEVICE_FEATURE(fillModeNonSolid)
+    PRINT_DEVICE_FEATURE(depthBounds)
+    PRINT_DEVICE_FEATURE(wideLines)
+    PRINT_DEVICE_FEATURE(largePoints)
+    PRINT_DEVICE_FEATURE(alphaToOne)
+    PRINT_DEVICE_FEATURE(multiViewport)
+    PRINT_DEVICE_FEATURE(samplerAnisotropy)
+    PRINT_DEVICE_FEATURE(textureCompressionETC2)
+    PRINT_DEVICE_FEATURE(textureCompressionASTC_LDR)
+    PRINT_DEVICE_FEATURE(textureCompressionBC)
+    PRINT_DEVICE_FEATURE(occlusionQueryPrecise)
+    PRINT_DEVICE_FEATURE(pipelineStatisticsQuery)
+    PRINT_DEVICE_FEATURE(vertexPipelineStoresAndAtomics)
+    PRINT_DEVICE_FEATURE(fragmentStoresAndAtomics)
+    PRINT_DEVICE_FEATURE(shaderTessellationAndGeometryPointSize)
+    PRINT_DEVICE_FEATURE(shaderImageGatherExtended)
+    PRINT_DEVICE_FEATURE(shaderStorageImageExtendedFormats)
+    PRINT_DEVICE_FEATURE(shaderStorageImageMultisample)
+    PRINT_DEVICE_FEATURE(shaderStorageImageReadWithoutFormat)
+    PRINT_DEVICE_FEATURE(shaderStorageImageWriteWithoutFormat)
+    PRINT_DEVICE_FEATURE(shaderUniformBufferArrayDynamicIndexing)
+    PRINT_DEVICE_FEATURE(shaderSampledImageArrayDynamicIndexing)
+    PRINT_DEVICE_FEATURE(shaderStorageBufferArrayDynamicIndexing)
+    PRINT_DEVICE_FEATURE(shaderStorageImageArrayDynamicIndexing)
+    PRINT_DEVICE_FEATURE(shaderClipDistance)
+    PRINT_DEVICE_FEATURE(shaderCullDistance)
+    PRINT_DEVICE_FEATURE(shaderFloat64)
+    PRINT_DEVICE_FEATURE(shaderInt64)
+    PRINT_DEVICE_FEATURE(shaderInt16)
+    PRINT_DEVICE_FEATURE(shaderResourceResidency)
+    PRINT_DEVICE_FEATURE(shaderResourceMinLod)
+    PRINT_DEVICE_FEATURE(sparseBinding)
+    PRINT_DEVICE_FEATURE(sparseResidencyBuffer)
+    PRINT_DEVICE_FEATURE(sparseResidencyImage2D)
+    PRINT_DEVICE_FEATURE(sparseResidencyImage3D)
+    PRINT_DEVICE_FEATURE(sparseResidency2Samples)
+    PRINT_DEVICE_FEATURE(sparseResidency4Samples)
+    PRINT_DEVICE_FEATURE(sparseResidency8Samples)
+    PRINT_DEVICE_FEATURE(sparseResidency16Samples)
+    PRINT_DEVICE_FEATURE(sparseResidencyAliased)
+    PRINT_DEVICE_FEATURE(variableMultisampleRate)
+    PRINT_DEVICE_FEATURE(inheritedQueries)
+#undef PRINT_DEVICE_FEATURE
+
+    return expander;
+}
+
+
+
+/*
+ * populate_vulkan_device_queue_properties() - Process Vulkan Device Queue
+ * Properties.
+ */
+static GtkWidget *populate_vulkan_device_queue_properties(VkDeviceAttr *vkdp,
+                                                          int i)
+{
+    int j;
+    int row = 5;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Queue Properties");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    for (j = 0; j < vkdp->queue_properties_count[i]; j++) {
+        VkExtent3D e = vkdp->queue_properties[i][j].minImageTransferGranularity;
+        char *qstr = vulkan_get_queue_family_flags(
+                         vkdp->queue_properties[i][j].queueFlags);
+        add_str(table, row++, "Queue Number", nvasprintf("%d", j));
+
+        add_str(table, row++, "Flags", qstr);
+        add_str(table, row++, "Count",
+                nvasprintf("%d", vkdp->queue_properties[i][j].queueCount));
+        add_str(table, row++, "Min Image Transfer Granularity",
+                nvasprintf("%dx%dx%d (WxHxD)", e.width, e.height, e.depth));
+        add_str_const(table, row++, "", "");
+    }
+    return expander;
+}
+
+
+/*
+ * populate_vulkan_device_memory_type_properties() - Process Vulkan Device
+ * Memory Type Properties.
+ */
+static GtkWidget *populate_vulkan_device_memory_type_properties(
+                     VkDeviceAttr *vkdp, int i)
+{
+    int j;
+    int row = 2;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Memory Type Properties");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    for (j = 0; j < vkdp->memory_properties[i].memoryTypeCount; j++) {
+        add_str(table, row++, "Index of Memory Type", nvasprintf("%d", j));
+        add_str(table, row++, "Heap Index", nvasprintf("%d",
+                vkdp->memory_properties[i].memoryTypes[j].heapIndex));
+        add_str(table, row++, "Flags",
+                vulkan_get_memory_property_flags(
+                    vkdp->memory_properties[i].memoryTypes[j].propertyFlags));
+        add_str_const(table, row++, "", "");
+    }
+    return expander;
+}
+
+
+/*
+ * populate_vulkan_device_memory_heap_properties() - Process Vulkan Device
+ * Memory Heap Properties.
+ */
+static GtkWidget *populate_vulkan_device_memory_heap_properties(
+                     VkDeviceAttr *vkdp, int i)
+{
+    int j;
+    int row = 1;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Memory Heap Properties");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    for (j = 0; j < vkdp->memory_properties[i].memoryHeapCount; j++) {
+        add_str(table, row++, "Index of Memory Heap", nvasprintf("%d", j));
+        add_str(table, row++, "Size",
+                nvasprintf("%" PRIu64,
+                           vkdp->memory_properties[i].memoryHeaps[j].size));
+        add_str(table, row++, "Flags",
+                vulkan_get_memory_heap_flags(
+                    vkdp->memory_properties[i].memoryHeaps[j].flags));
+        add_str_const(table, row++, "", "");
+    }
+    return expander;
+}
+
+
+
+/*
+ * setup_vulkan_format_feature_string()
+ */
+static char *setup_vulkan_format_feature_string(VkFormatFeatureFlags flags)
+{
+    char *str = vulkan_get_format_feature_flags(flags);
+    int i;
+
+    for (i = 0; i < strlen(str); i++)
+    {
+        if (str[i] == ' ') {
+            str[i] = '\n';
+        }
+    }
+
+    return str;
+}
+
+
+
+/*
+ * populate_vulkan_format()
+ */
+static GtkWidget *populate_vulkan_formats(VkDeviceAttr *vkdp, int i)
+{
+    int j;
+    int row = 5;
+    char *str;
+    GtkWidget *table = gtk_table_new(row, 2, FALSE);
+    GtkWidget *expander = gtk_expander_new("Formats");
+    GtkWidget *ibox = gtk_hbox_new(FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+    gtk_container_add(GTK_CONTAINER(expander), ibox);
+
+    for (j = 0; j < vkdp->formats_count[i]; j++) {
+        add_str(table, row++, "Index", nvasprintf("%d", j));
+        str = setup_vulkan_format_feature_string(
+                  vkdp->formats[i][j].linearTilingFeatures);
+        add_str(table, row++, "Linear", str);
+        str = setup_vulkan_format_feature_string(
+                  vkdp->formats[i][j].bufferFeatures);
+        add_str(table, row++, "Buffer", str);
+        str = setup_vulkan_format_feature_string(
+                  vkdp->formats[i][j].optimalTilingFeatures);
+        add_str(table, row++, "Optimal", str);
+
+        add_str_const(table, row++, "", "");
+    }
+    return expander;
+}
+
+
+/*
+ * compare_gpu_uuids() - compare two uuid strings skipping the possible "GPU"
+ * prefix and any '-' characters in the first string.
+ */
+static int compare_gpu_uuids(const char* gpu_uuid, const char* vk_gpu_uuid)
+{
+    int i = 3, j = 3;
+
+    if (!gpu_uuid || !vk_gpu_uuid) {
+        return 0;
+    }
+
+    while (gpu_uuid[i] && vk_gpu_uuid[j]) {
+        if (gpu_uuid[i] == '-') {
+            i++;
+        }
+
+        if (vk_gpu_uuid[j] == '-') {
+            j++;
+        }
+
+        if (gpu_uuid[i] != vk_gpu_uuid[j])
+        {
+            return 0;
+        }
+
+        i++;
+        j++;
+    }
+
+    if (gpu_uuid[i] == 0 && vk_gpu_uuid[j] == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+
+}
+
+
+
+/*
+ * Check to see if device number matches a valid device UUID. If
+ * any data is missing to make a comparison, assume a match.
+ */
+static gboolean check_associated_device(VkDeviceAttr *vkdp, int device_num,
+                                        char **assoc_gpu_uuid)
+{
+    int i;
+    if (assoc_gpu_uuid == NULL ||
+        vkdp->phy_device_uuid == NULL ||
+        vkdp->phy_device_uuid[device_num] == NULL) {
+        return TRUE;
+    }
+
+    for (i = 0; assoc_gpu_uuid[i]; i++) {
+        if (compare_gpu_uuids(assoc_gpu_uuid[i],
+                              vkdp->phy_device_uuid[device_num]))
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+
+
+/*
+ * Probes for Graphics information and sets up the results
  * in the Graphics notebook widget.
  */
 void ctk_glx_probe_info(GtkWidget *widget)
@@ -939,14 +1563,26 @@ void ctk_glx_probe_info(GtkWidget *widget)
     char *egl_vendor        = NULL;
     char *egl_version       = NULL;
     char *egl_extensions    = NULL;
+    char *vk_api_version    = NULL;
+    VkLayerAttr *vklp = nvalloc(sizeof(VkLayerAttr));
+    VkDeviceAttr *vkdp = nvalloc(sizeof(VkDeviceAttr));
+    int *pData;
+    int len;
+    int i;
     char *ptr;
+    int device_num;
+    int row;
 
     GtkWidget *vbox, *vbox2;
     GtkWidget *table;
+    GtkWidget *expander;
     GtkWidget *notebook = gtk_notebook_new();
     GtkWidget *notebook_label;
     GtkWidget *scroll_win;
     int notebook_padding = 8;
+
+    CtrlTarget *gpu_target = NULL;
+    gchar **assoc_gpu_uuid = NULL;
 
     /* Make sure the widget was initialized and that glx information
      * has not yet been initialized.
@@ -958,6 +1594,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     ctk_glx->glx_available = TRUE;
     ctk_glx->egl_available = TRUE;
+    ctk_glx->vulkan_available = TRUE;
 
 
     if (ctrl_target->targetTypeInfo->nvctrl == X_SCREEN_TARGET) {
@@ -1039,8 +1676,74 @@ void ctk_glx_probe_info(GtkWidget *widget)
     if ( ret != NvCtrlSuccess ) { ctk_glx->egl_available = FALSE; }
 
 
+    /* Get Vulkan information */
 
-    if (!ctk_glx->glx_available && !ctk_glx->egl_available) {
+    /*
+     * This query will gather the UUIDs of GPUs used by the screen this page
+     * is assocatied with. Later when we display the data, we will compare these
+     * UUIDs against the UUIDs we get from Vulkan. Earlier versions of Vulkan do
+     * not make these UUIDs available so in that case we will simply display
+     * available data from all GPUs.
+     */
+    ret = NvCtrlGetBinaryAttribute(ctrl_target,
+              0,
+              NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
+              (unsigned char **)(&pData),
+              &len);
+    if (ret == NvCtrlSuccess) {
+        int missing_any_uuid = 0;
+        int num_gpus = pData[0];
+        assoc_gpu_uuid = nvalloc((num_gpus + 1) * sizeof(gchar*));
+
+        for (i = 0; i < num_gpus; i++) {
+            gpu_target = NvCtrlGetTarget(ctrl_target->system,
+                                         GPU_TARGET, pData[i+1]);
+            if (gpu_target == NULL) {
+                continue;
+            }
+
+            ret = NvCtrlGetStringAttribute(gpu_target, NV_CTRL_STRING_GPU_UUID,
+                                           &assoc_gpu_uuid[i]);
+            if (ret != NvCtrlSuccess) {
+                missing_any_uuid++;
+                break;
+            }
+        }
+
+        if (missing_any_uuid) {
+            for (i = 0; i < num_gpus; i++) {
+                nvfree(assoc_gpu_uuid[i]);
+            }
+            nvfree(assoc_gpu_uuid);
+            assoc_gpu_uuid = NULL;
+        }
+
+    }
+
+    ret = NvCtrlGetStringAttribute(gpu_target,
+                                   NV_CTRL_STRING_VK_API_VERSION,
+                                   &vk_api_version);
+    if ( ret != NvCtrlSuccess ) { ctk_glx->vulkan_available = FALSE; }
+
+    ret = NvCtrlGetVoidAttribute(gpu_target,
+                                 NV_CTRL_ATTR_VK_LAYER_INFO,
+                                 (void*) vklp);
+    if ( ret != NvCtrlSuccess ) { ctk_glx->vulkan_available = FALSE; }
+
+    ret = NvCtrlGetVoidAttribute(gpu_target,
+                                 NV_CTRL_ATTR_VK_DEVICE_INFO,
+                                 (void*) vkdp);
+    if ( ret != NvCtrlSuccess ) { ctk_glx->vulkan_available = FALSE; }
+
+
+    if ( !ctk_glx->vulkan_available ) {
+        nv_warning_msg("Vulkan Library Information unavailable.");
+    }
+
+
+    if (!ctk_glx->glx_available &&
+        !ctk_glx->egl_available &&
+        !ctk_glx->vulkan_available) {
         goto done;
     }
 
@@ -1226,6 +1929,287 @@ void ctk_glx_probe_info(GtkWidget *widget)
                                  notebook_label);
     }
 
+    if (ctk_glx->vulkan_available) {
+        char *str;
+        GtkWidget *ibox;
+        GtkWidget *general_frame = gtk_frame_new("General");
+        GtkWidget *gbox = gtk_vbox_new(FALSE, 0);
+
+        /* Add Vulkan information to widget */
+        notebook_label = gtk_label_new("Vulkan");
+        vbox2 = gtk_vbox_new(FALSE, 3);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_AUTOMATIC,
+                                       GTK_POLICY_AUTOMATIC);
+
+        /* Instance Extensions */
+        expander = gtk_expander_new("Instance Information");
+        ibox = gtk_hbox_new(FALSE, 0);
+
+        table = gtk_table_new(2 + vklp->inst_extensions_count, 3, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+
+        row = 0;
+        add_table_row_3(table, row++, "API Version:", vk_api_version, "");
+
+        if (vklp->instance_version) {
+            add_table_row_3(table, row++, "Instance Version:",
+                            vklp->instance_version, "");
+        }
+
+        str = nvasprintf("%d Extensions", vklp->inst_extensions_count);
+        add_table_row_3(table, row++, "Instance Extensions:", str, "");
+        nvfree(str);
+
+        for (i = 0; i < vklp->inst_extensions_count; i++) {
+            char *str = nvasprintf("Version: %d",
+                                   vklp->inst_extensions[i].specVersion);
+
+            add_table_row_3(table, i+row,
+                            "",
+                            vklp->inst_extensions[i].extensionName,
+                            str);
+            nvfree(str);
+        }
+        gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+        gtk_container_add(GTK_CONTAINER(expander), ibox);
+        gtk_box_pack_start(GTK_BOX(gbox), expander, FALSE, FALSE, 0);
+
+
+        /* Layers and Layer Extensions */
+        expander = gtk_expander_new("Layers");
+        ibox = gtk_hbox_new(FALSE, 0);
+        table = gtk_table_new(2, 3, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+
+
+        str = nvasprintf("%d Layer(s)", vklp->inst_layer_properties_count);
+        add_table_row_3(table, 0, "Layer Properties", str, "");
+        nvfree(str);
+
+        row = 1;
+        for (i = 0; i < vklp->inst_layer_properties_count; i++) {
+            int j;
+            char *vstr = vulkan_get_version_string(
+                             vklp->inst_layer_properties[i].specVersion);
+            char *fstr = nvasprintf("%s - %d", vstr,
+                             vklp->inst_layer_properties[i].implementationVersion);
+
+            add_table_row_3(table, row++, "", "Name",
+                            vklp->inst_layer_properties[i].layerName);
+            add_table_row_3(table, row++, "", "Description",
+                            vklp->inst_layer_properties[i].description);
+            add_table_row_3(table, row++, "", "Version - Implementation", fstr);
+
+            if (vklp->layer_extensions_count[i] == 0) {
+                add_table_row_3(table, row++, "", "Layer Extensions", "None");
+            } else {
+                char *lstr = nvasprintf("Layer Extensions: %d",
+                    vklp->layer_extensions_count[i]);
+                GtkWidget *ext_expander = gtk_expander_new(lstr);
+                GtkWidget *ext_ibox = gtk_hbox_new(FALSE, 0);
+                GtkWidget *ext_table = gtk_table_new(1, 2, FALSE);
+                gtk_table_set_row_spacings(GTK_TABLE(ext_table), 3);
+                gtk_table_set_col_spacings(GTK_TABLE(ext_table), 15);
+                nvfree(lstr);
+
+                add_string_to_table(table, row, 0, "");
+                gtk_table_attach(GTK_TABLE(table), ext_expander,
+                                 1, 3, row, row + 1,
+                                 GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+                gtk_container_add(GTK_CONTAINER(ext_expander), ext_ibox);
+                gtk_box_pack_start(GTK_BOX(ext_ibox), ext_table,
+                                   FALSE, FALSE, INDENT_SIZE);
+                row++;
+
+                for (j = 0; j < vklp->layer_extensions_count[i]; j++) {
+                    char *estr;
+                    add_string_to_table(ext_table, j, 0,
+                        vklp->layer_extensions[i][j].extensionName);
+                    estr = nvasprintf("Version: %d",
+                        vklp->layer_extensions[i][j].specVersion);
+                    add_string_to_table(ext_table, j, 1, estr);
+                }
+            }
+
+            for (device_num = 0;
+                 device_num < vklp->phy_devices_count;
+                 device_num++) {
+
+                char *dstr;
+                char *device_name_str;
+
+                /*
+                 * If we have UUIDs to compare between associated devices and
+                 * Vulkan devices, look for matches and print only that data. If
+                 * we have nothing to compare, display all device data.
+                 */
+                if (FALSE == check_associated_device(vkdp, device_num,
+                                                     assoc_gpu_uuid)) {
+                    continue;
+                }
+
+                if (vkdp->phy_device_properties[device_num].deviceName) {
+                    device_name_str = nvasprintf("%s",
+                        vkdp->phy_device_properties[device_num].deviceName);
+                } else {
+                    device_name_str = nvasprintf("Unknown");
+                }
+                dstr = nvasprintf("Physical Device %d", device_num);
+                add_table_row_3(table, row++, "", dstr, device_name_str);
+                nvfree(device_name_str);
+                nvfree(dstr);
+
+                if (vklp->layer_device_extensions_count[device_num] &&
+                    vklp->layer_device_extensions_count[device_num][i] > 0) {
+                    char *lstr = nvasprintf("Layer-Device Extensions: %d",
+                        vklp->layer_device_extensions_count[device_num][i]);
+                    GtkWidget *ext_expander = gtk_expander_new(lstr);
+                    GtkWidget *ext_ibox = gtk_hbox_new(FALSE, 0);
+                    GtkWidget *ext_table = gtk_table_new(1, 2, FALSE);
+                    gtk_table_set_row_spacings(GTK_TABLE(ext_table), 3);
+                    gtk_table_set_col_spacings(GTK_TABLE(ext_table), 15);
+                    nvfree(lstr);
+
+                    add_string_to_table(table, row, 0, "");
+                    gtk_table_attach(GTK_TABLE(table), ext_expander,
+                                     1, 3, row, row + 1,
+                                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+                    gtk_box_pack_start(GTK_BOX(ext_ibox), ext_table,
+                                       FALSE, FALSE, INDENT_SIZE);
+                    gtk_container_add(GTK_CONTAINER(ext_expander), ext_ibox);
+
+                    for (j = 0;
+                         j < vklp->layer_device_extensions_count[device_num][i];
+                         j++) {
+                        char *estr = nvasprintf("Version: %d",
+                            vklp->layer_device_extensions[device_num][i][j].specVersion);
+                        add_string_to_table(ext_table, j, 0,
+                            vklp->layer_device_extensions[device_num][i][j].extensionName);
+                        add_string_to_table(ext_table, j, 1, estr);
+
+                        nvfree(estr);
+                    }
+
+                } else {
+                    add_table_row_3(table, row++, "",
+                                    "Layer-Device Extensions:", "None");
+                }
+
+            }
+
+
+            add_table_row_3(table, row++, "", "", "");
+            nvfree(fstr);
+            nvfree(vstr);
+
+
+
+
+        }
+        gtk_box_pack_start(GTK_BOX(ibox), table, FALSE, FALSE, INDENT_SIZE);
+        gtk_container_add(GTK_CONTAINER(expander), ibox);
+        gtk_box_pack_start(GTK_BOX(gbox), expander, FALSE, FALSE, 0);
+
+
+        gtk_container_add(GTK_CONTAINER(general_frame), gbox);
+        gtk_box_pack_start(GTK_BOX(vbox2), general_frame, FALSE, FALSE, 0);
+
+        /*
+         * Vulkan Device Information
+         */
+        for (device_num = 0;
+             device_num < vkdp->phy_devices_count;
+             device_num++) {
+
+            GtkWidget *device_box = gtk_vbox_new(FALSE, 0);
+            GtkWidget *device_frame;
+            char *dstr;
+            char *device_name_str;
+
+            /*
+             * If we have UUIDs to compare between associated devices and
+             * Vulkan devices, look for matches and print only that data. If we
+             * have nothing to compare, display all device data.
+             */
+            if (FALSE == check_associated_device(vkdp, device_num,
+                                                 assoc_gpu_uuid)) {
+                continue;
+            }
+
+
+            if (vkdp->phy_device_properties[device_num].deviceName) {
+                device_name_str = nvasprintf(" - %s",
+                    vkdp->phy_device_properties[device_num].deviceName);
+            } else {
+                device_name_str = nvasprintf("");
+            }
+
+            dstr = nvasprintf("Physical Device %d%s",
+                              device_num, device_name_str);
+
+            device_frame = gtk_frame_new(dstr);
+            gtk_box_pack_start(GTK_BOX(vbox2),
+                               device_frame,
+                               FALSE, FALSE, 0);
+            gtk_container_add(GTK_CONTAINER(device_frame), device_box);
+
+            nvfree(device_name_str);
+            nvfree(dstr);
+
+            /* Device Properties */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_properties(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Device Extensions */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_extensions(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Sparse Properties */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_sparse_properties(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Limits */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_limits(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Device Features */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_features(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Queue Properties */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_queue_properties(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Memory Properties */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_memory_type_properties(vkdp, device_num),
+                FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_device_memory_heap_properties(vkdp, device_num),
+                FALSE, FALSE, 0);
+
+            /* Formats */
+            gtk_box_pack_start(GTK_BOX(device_box),
+                populate_vulkan_formats(vkdp, device_num),
+                FALSE, FALSE, 0);
+        }
+
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
+    }
+
 
     /* Show the information */
     gtk_widget_show_all(GTK_WIDGET(ctk_glx));
@@ -1234,6 +2218,11 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     /* Fall through */
  done:
+
+    NvCtrlFreeVkLayerAttr(vklp);
+    NvCtrlFreeVkDeviceAttr(vkdp);
+    nvfree(vklp);
+    nvfree(vkdp);
 
     /* Free temp strings */
     free(direct_rendering);
@@ -1251,6 +2240,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
     free(egl_vendor);
     free(egl_version);
     free(egl_extensions);
+    free(vk_api_version);
 
 } /* ctk_glx_probe_info() */
 

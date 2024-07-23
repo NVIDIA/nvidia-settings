@@ -21,6 +21,7 @@
 #define __NVCTRL_ATTRIBUTES__
 
 #include <X11/Xlib.h>
+#include <vulkan/vulkan.h>
 
 #include "NVCtrl.h"
 #include "common-utils.h"
@@ -140,6 +141,7 @@ struct _CtrlSystem {
     Display *dpy;   /* X display connection */
     Bool has_nv_control;
     Bool has_nvml;
+    Bool limit_subsystems;
     void *wayland_output;
 
     CtrlTargetNode *targets[MAX_TARGET_TYPES]; /* Shadows targetTypeTable */
@@ -256,10 +258,19 @@ typedef enum {
 
 #define NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE  (NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS)
 
+/* Vulkan */
+
+#define NV_CTRL_ATTR_VK_BASE        (NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_ATTR_VK_LAYER_INFO  (NV_CTRL_ATTR_VK_BASE + 0)
+#define NV_CTRL_ATTR_VK_DEVICE_INFO (NV_CTRL_ATTR_VK_BASE + 1)
+
+#define NV_CTRL_ATTR_VK_LAST_ATTRIBUTE (NV_CTRL_ATTR_VK_DEVICE_INFO)
+
 /* RandR */
 
 #define NV_CTRL_ATTR_RANDR_BASE \
-       (NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE + 1)
+       (NV_CTRL_ATTR_VK_LAST_ATTRIBUTE + 1)
 
 #define NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE (NV_CTRL_ATTR_RANDR_BASE +  0)
 
@@ -399,6 +410,45 @@ typedef struct EGLConfigAttrRec {
     int transparent_blue_value;
 
 } EGLConfigAttr;
+
+
+typedef struct {
+    char *instance_version;
+
+    uint32_t inst_layer_properties_count;
+    VkLayerProperties *inst_layer_properties;
+
+    uint32_t inst_extensions_count;
+    VkExtensionProperties *inst_extensions;
+
+    uint32_t *layer_extensions_count;
+    VkExtensionProperties **layer_extensions;
+
+    uint32_t phy_devices_count;
+    uint32_t **layer_device_extensions_count;
+    VkExtensionProperties ***layer_device_extensions;
+} VkLayerAttr;
+
+typedef struct {
+    uint32_t phy_devices_count;
+
+    VkPhysicalDeviceProperties *phy_device_properties;
+    char **phy_device_uuid;
+    uint32_t *device_extensions_count;
+    VkExtensionProperties **device_extensions;
+    VkPhysicalDeviceFeatures *features;
+    VkPhysicalDeviceMemoryProperties *memory_properties;
+
+    uint32_t *queue_properties_count;
+    VkQueueFamilyProperties **queue_properties;
+
+    uint32_t *formats_count;
+    VkFormatProperties **formats;
+} VkDeviceAttr;
+
+void NvCtrlFreeVkLayerAttr(VkLayerAttr *);
+void NvCtrlFreeVkDeviceAttr(VkDeviceAttr *);
+
 
 /*
  * Used to pack CtrlAttributePerms.valid_targets
@@ -550,12 +600,21 @@ typedef struct {
 
 #define NV_CTRL_STRING_EGL_LAST_ATTRIBUTE (NV_CTRL_STRING_EGL_EXTENSIONS)
 
+/*
+ * Additional Vulkan string attributes for NvCtrlGetStringDisplayAttributes();
+ */
+
+#define NV_CTRL_STRING_VK_BASE        (NV_CTRL_STRING_EGL_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_VK_API_VERSION (NV_CTRL_STRING_VK_BASE + 0)
+
+#define NV_CTRL_STRING_VK_LAST_ATTRIBUTE (NV_CTRL_STRING_VK_API_VERSION)
 
 /*
  * Additional XRANDR string attributes for NvCtrlGetStringDisplayAttribute();
  */
 
-#define NV_CTRL_STRING_XRANDR_BASE            (NV_CTRL_STRING_EGL_LAST_ATTRIBUTE + 1)
+#define NV_CTRL_STRING_XRANDR_BASE            (NV_CTRL_STRING_VK_LAST_ATTRIBUTE + 1)
 
 #define NV_CTRL_STRING_XRANDR_VERSION         (NV_CTRL_STRING_XRANDR_BASE)
 
@@ -603,6 +662,7 @@ typedef struct {
 #define NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM       0x10
 #define NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM         0x20
 #define NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM          0x40
+#define NV_CTRL_ATTRIBUTES_VK_SUBSYSTEM           0x80
 #define NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS    \
  (NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM  | \
   NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM | \
@@ -610,11 +670,15 @@ typedef struct {
   NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM         | \
   NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM      | \
   NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM        | \
-  NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM)
+  NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM         | \
+  NV_CTRL_ATTRIBUTES_VK_SUBSYSTEM)
 
 
 
 CtrlSystem *NvCtrlConnectToSystem(const char *display, CtrlSystemList *systems);
+CtrlSystem *NvCtrlConnectToLimitedSystem(const char *display,
+                                         CtrlSystemList *systems,
+                                         Bool limit_subsystems);
 CtrlSystem *NvCtrlGetSystem      (const char *display, CtrlSystemList *systems);
 void        NvCtrlFreeAllSystems (CtrlSystemList *systems);
 

@@ -359,7 +359,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

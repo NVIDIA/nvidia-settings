@@ -91,6 +91,7 @@ LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesVidMode.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesXv.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesGlx.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesEgl.c
+LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesVulkan.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesXrandr.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesUtils.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesNvml.c

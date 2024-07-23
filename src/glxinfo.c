@@ -611,7 +611,6 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
 {
     CtrlSystem     *system;
     CtrlTargetNode *node;
-    CtrlTargetType target;
     ReturnStatus   status = NvCtrlSuccess;
 
     char *egl_vendor        = NULL;
@@ -627,18 +626,12 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
         return;
     }
 
-    if (system->has_nv_control) {
-        target = X_SCREEN_TARGET;
-    } else {
-        target = GPU_TARGET;
-    }
-
-    /* Print information for each target */
-    for (node = system->targets[target]; node; node = node->next) {
+    /* Print information for each screen */
+    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
 
         CtrlTarget *t = node->t;
 
-        /* No target, move on */
+        /* No screen, move on */
         if (!t->h) continue;
 
         nv_msg(NULL, "EGL Information for %s:", t->name);
@@ -702,11 +695,7 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
         SAFE_FREE(egl_extensions);
         SAFE_FREE(egl_config_attribs);
 
-        /* If using a gpu, only process the first target */
-        if (target == GPU_TARGET) {
-            break;
-        }
-    } /* Done looking at all targets */
+    } /* Done looking at all screens */
 
 
     /* Fall through */
@@ -726,4 +715,604 @@ void print_eglinfo(const char *display_name, CtrlSystemList *systems)
 
 } /* print_eglinfo() */
 
+
+
+/*
+ * Vulkan information
+ *
+ */
+
+
+const char *vulkan_get_physical_device_type(VkPhysicalDeviceType type)
+{
+    switch (type) {
+    case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+        return "Other";
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        return "Integrated";
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        return "Discrete";
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        return "Virtual";
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        return "CPU";
+    default:
+        return "Unknown";
+    }
+}
+
+
+char *vulkan_get_queue_family_flags(VkQueueFlags flags)
+{
+    const char *gb = flags & VK_QUEUE_GRAPHICS_BIT ?       " Graphics" : "";
+    const char *cb = flags & VK_QUEUE_COMPUTE_BIT  ?       " Compute"  : "";
+    const char *tb = flags & VK_QUEUE_TRANSFER_BIT ?       " Transfer" : "";
+    const char *sb = flags & VK_QUEUE_SPARSE_BINDING_BIT ? " Sparse"   : "";
+
+    if (!flags) {
+        return nvasprintf(" None");
+    }
+
+    return nvasprintf("%s%s%s%s", gb, cb, tb, sb);
+}
+
+
+char *vulkan_get_memory_property_flags(VkMemoryPropertyFlagBits flags)
+{
+    const char *dl  =
+        flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT  ? " DeviceLocal" : "";
+    const char *hv  =
+        flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT  ? " HostVisible" : "";
+    const char *hco =
+        flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT ? " HostCoherent" : "";
+    const char *hca =
+        flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT   ? " HostCached" : "";
+    const char *la  = flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT ?
+                          " LazilyAllocated" : "";
+
+    if (!flags) {
+        return nvasprintf(" None");
+    }
+
+    return nvasprintf("%s%s%s%s%s", dl, hv, hco, hca, la);
+}
+
+
+char *vulkan_get_memory_heap_flags(VkMemoryHeapFlags flags)
+{
+    const char *dl =
+        flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT ? " DeviceLocal" : "";
+
+    if (!flags) {
+        return nvasprintf(" None");
+    }
+
+    return nvasprintf("%s", dl);
+}
+
+
+#define PRINT_MATCH_FLAGS(var) flags & var ? " " #var : ""
+
+char *vulkan_get_format_feature_flags(VkFormatFeatureFlags flags)
+{
+
+    const char *smi = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
+    const char *sti = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
+    const char *sia =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT);
+    const char *utb =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT);
+    const char *stb =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT);
+    const char *sta =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT);
+    const char *vb  = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT);
+    const char *ca  = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT);
+    const char *cab =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT);
+    const char *dsa =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    const char *bs  = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_BLIT_SRC_BIT);
+    const char *bd  = PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_BLIT_DST_BIT);
+    const char *sfl =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT);
+    const char *sfc =
+        PRINT_MATCH_FLAGS(VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG);
+
+    if (!flags) {
+        return nvasprintf(" None");
+    }
+
+    return nvasprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+                      smi, sti, sia, utb, stb, sta, vb,
+                      ca, cab, dsa, bs, bd, sfl, sfc);
+
+
+}
+#undef PRINT_MATCH_FLAGS
+
+
+static void print_vulkan_format_feature_flags(VkFormatFeatureFlags flags)
+{
+    char *s = vulkan_get_format_feature_flags(flags);
+    char *tok = strtok(s, " ");
+    while (tok) {
+        if (strlen(tok) > 0) {
+            nv_msg("        ", "%s", tok);
+        }
+        tok = strtok(NULL, " ");
+    }
+    nvfree(s);
+}
+
+
+static void print_extension_property(VkExtensionProperties *ext, const char *s)
+{
+    const char *prefix = s ? s : "";
+    nv_msg(prefix, "%s - Version: %d",
+           ext->extensionName, ext->specVersion);
+}
+
+
+char *vulkan_get_version_string(uint32_t version) {
+    return nvasprintf("%d.%d.%d", VK_VERSION_MAJOR(version),
+                                  VK_VERSION_MINOR(version),
+                                  VK_VERSION_PATCH(version));
+}
+
+
+/*
+ * print_vulkaninfo() - prints information about Vulkan
+ */
+
+void print_vulkaninfo(const char *display_name, CtrlSystemList *systems)
+{
+    CtrlSystem     *system;
+    CtrlTargetNode *node;
+    ReturnStatus   status = NvCtrlSuccess;
+
+    char *vk_api_version = NULL;
+
+    int i, j;
+
+    system = NvCtrlConnectToSystem(display_name, systems);
+    if (system == NULL) {
+        return;
+    }
+
+    /* Print information - We only need to address the first GPU target as it
+     * give us all available devices since we clear the Display envvar when
+     * creating an instance. */
+    node = system->targets[GPU_TARGET];
+
+    if (node) {
+
+        VkLayerAttr *vklp = nvalloc(sizeof(VkLayerAttr));
+        VkDeviceAttr *vkdp = nvalloc(sizeof(VkDeviceAttr));
+        CtrlTarget *t = node->t;
+
+        /* No handle, move on */
+        if (!t->h) return;
+
+        nv_msg(NULL, "Vulkan Information for %s:", t->name);
+
+        /* Get Vulkan information */
+        status = NvCtrlGetStringAttribute(t,
+                                          NV_CTRL_STRING_VK_API_VERSION,
+                                          &vk_api_version);
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+        nv_msg(NULL, "Vulkan API version string: %s",
+               NULL_TO_EMPTY(vk_api_version));
+        nv_msg("", "");
+
+        /* Query Layers and Extensions */
+
+        status = NvCtrlGetVoidAttribute(t,
+                                        NV_CTRL_ATTR_VK_LAYER_INFO,
+                                        (void *)(vklp));
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+
+        /* Instance Extensions */
+        nv_msg("", "### Instance Extensions - %d ###",
+               vklp->inst_extensions_count);
+
+        for (i = 0; i < vklp->inst_extensions_count; i++) {
+            print_extension_property(&vklp->inst_extensions[i],"  ");
+        }
+        nv_msg("","");
+
+        /* Layers and Layer Extensions */
+        nv_msg("", "### Layers - %d ###\n", vklp->inst_layer_properties_count);
+
+        for (i = 0; i < vklp->inst_layer_properties_count; i++) {
+            int d;
+            char *vstr = vulkan_get_version_string(
+                             vklp->inst_layer_properties[i].specVersion);
+
+            nv_msg("  ", "Name: %s",
+                   vklp->inst_layer_properties[i].layerName);
+            nv_msg("    ", "Description: %s",
+                   vklp->inst_layer_properties[i].description);
+            nv_msg("    ", "Version: %s - Implementation: %d",
+                   vstr, vklp->inst_layer_properties[i].implementationVersion);
+            nvfree(vstr);
+
+            nv_msg("    ", "Layer Extensions: %d",
+                   vklp->layer_extensions_count[i]);
+
+            if (vklp->layer_extensions_count[i] > 0) {
+                for (j = 0; j < vklp->layer_extensions_count[i]; j++) {
+                    print_extension_property(&vklp->layer_extensions[i][j],
+                                             "      ");
+                }
+            }
+
+            /* Layer-Device Extensions */
+
+            for (d = 0; d < vklp->phy_devices_count; d++) {
+
+                nv_msg("    ", "Device %d", d);
+
+                nv_msg("      ", "Layer-Device Extensions: %d",
+                       vklp->layer_device_extensions_count[d][i]);
+
+                for (j = 0;
+                     j < vklp->layer_device_extensions_count[d][i];
+                     j++) {
+                    print_extension_property(
+                        &vklp->layer_device_extensions[d][i][j], "      ");
+                }
+            }
+            nv_msg("", "");
+        }
+        nv_msg("", "");
+
+        /* Query Device */
+
+        status = NvCtrlGetVoidAttribute(t,
+                                        NV_CTRL_ATTR_VK_DEVICE_INFO,
+                                        (void *)(vkdp));
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+        nv_msg("", "### Physical Devices - %d ###", vkdp->phy_devices_count);
+        for (i = 0; i < vkdp->phy_devices_count; i++) {
+            int j;
+            char *str;
+
+            /* Device Properties */
+            str = vulkan_get_version_string(
+                      vkdp->phy_device_properties[i].apiVersion);
+            nv_msg("  ", "Device Name:    %s",
+                   vkdp->phy_device_properties[i].deviceName);
+            nv_msg("  ", "Device Type:    %s",
+                   vulkan_get_physical_device_type(
+                       vkdp->phy_device_properties[i].deviceType));
+            nv_msg("  ", "API Version:    %s", str);
+            nv_msg("  ", "Driver Version: %#x",
+                   vkdp->phy_device_properties[i].driverVersion);
+            nv_msg("  ", "Vendor ID:      %#x",
+                   vkdp->phy_device_properties[i].vendorID);
+            nv_msg("  ", "Device ID:      %#x",
+                   vkdp->phy_device_properties[i].deviceID);
+            if (vkdp->phy_device_uuid && vkdp->phy_device_uuid[i]) {
+                nv_msg("  ", "Device UUID:    %s",
+                       vkdp->phy_device_uuid[i]);
+            }
+            nvfree(str);
+
+            nv_msg("  ", "Device Extensions:");
+            if (!vkdp->device_extensions_count[i]) {
+                nv_msg("    ", "None");
+            } else {
+                for (j = 0; j < vkdp->device_extensions_count[i]; j++) {
+                    print_extension_property(
+                        &vkdp->device_extensions[i][j], "    ");
+                }
+            }
+
+
+            nv_msg("  ", "Sparse Properties:");
+#define PRINT_SPARSE_FEATURES(var)                                        \
+            nv_msg("    ", "%-41s: %s", #var,                             \
+                   vkdp->phy_device_properties[i].sparseProperties.var ?  \
+                       "yes" : "no");
+            PRINT_SPARSE_FEATURES(residencyStandard2DBlockShape)
+            PRINT_SPARSE_FEATURES(residencyStandard2DMultisampleBlockShape)
+            PRINT_SPARSE_FEATURES(residencyStandard3DBlockShape)
+            PRINT_SPARSE_FEATURES(residencyAlignedMipSize)
+            PRINT_SPARSE_FEATURES(residencyNonResidentStrict)
+#undef PRINT_SPARSE_FEATURES
+
+            nv_msg("  ", "Limits:");
+#define PRINT_LIMITS_UINT(var)                                  \
+            nv_msg("    ", "%-48s: %u", #var,                   \
+                   vkdp->phy_device_properties[i].limits.var);
+#define PRINT_LIMITS_ULONG(var)                                 \
+            nv_msg("    ", "%-48s: %lu", #var,                  \
+                   (unsigned long)vkdp->phy_device_properties[i].limits.var);
+#define PRINT_LIMITS_FLOAT(var)                                 \
+            nv_msg("    ", "%-48s: %f", #var,                   \
+                   vkdp->phy_device_properties[i].limits.var);
+#define PRINT_LIMITS_SIZE(var)                                  \
+            nv_msg("    ", "%-48s: %zu", #var,                  \
+                   vkdp->phy_device_properties[i].limits.var);
+            PRINT_LIMITS_UINT (maxImageDimension1D)
+            PRINT_LIMITS_UINT (maxImageDimension2D)
+            PRINT_LIMITS_UINT (maxImageDimension3D)
+            PRINT_LIMITS_UINT (maxImageDimensionCube)
+            PRINT_LIMITS_UINT (maxImageArrayLayers)
+            PRINT_LIMITS_UINT (maxTexelBufferElements)
+            PRINT_LIMITS_UINT (maxUniformBufferRange)
+            PRINT_LIMITS_UINT (maxStorageBufferRange)
+            PRINT_LIMITS_UINT (maxPushConstantsSize)
+            PRINT_LIMITS_UINT (maxMemoryAllocationCount)
+            PRINT_LIMITS_UINT (maxSamplerAllocationCount)
+            PRINT_LIMITS_ULONG(bufferImageGranularity)
+            PRINT_LIMITS_ULONG(sparseAddressSpaceSize)
+            PRINT_LIMITS_UINT (maxBoundDescriptorSets)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorSamplers)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorUniformBuffers)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorStorageBuffers)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorSampledImages)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorStorageImages)
+            PRINT_LIMITS_UINT (maxPerStageDescriptorInputAttachments)
+            PRINT_LIMITS_UINT (maxPerStageResources)
+            PRINT_LIMITS_UINT (maxDescriptorSetSamplers)
+            PRINT_LIMITS_UINT (maxDescriptorSetUniformBuffers)
+            PRINT_LIMITS_UINT (maxDescriptorSetUniformBuffersDynamic)
+            PRINT_LIMITS_UINT (maxDescriptorSetStorageBuffers)
+            PRINT_LIMITS_UINT (maxDescriptorSetStorageBuffersDynamic)
+            PRINT_LIMITS_UINT (maxDescriptorSetSampledImages)
+            PRINT_LIMITS_UINT (maxDescriptorSetStorageImages)
+            PRINT_LIMITS_UINT (maxDescriptorSetInputAttachments)
+            PRINT_LIMITS_UINT (maxVertexInputAttributes)
+            PRINT_LIMITS_UINT (maxVertexInputBindings)
+            PRINT_LIMITS_UINT (maxVertexInputAttributeOffset)
+            PRINT_LIMITS_UINT (maxVertexInputBindingStride)
+            PRINT_LIMITS_UINT (maxVertexOutputComponents)
+            PRINT_LIMITS_UINT (maxTessellationGenerationLevel)
+            PRINT_LIMITS_UINT (maxTessellationPatchSize)
+            PRINT_LIMITS_UINT (maxTessellationControlPerVertexInputComponents)
+            PRINT_LIMITS_UINT (maxTessellationControlPerVertexOutputComponents)
+            PRINT_LIMITS_UINT (maxTessellationControlPerPatchOutputComponents)
+            PRINT_LIMITS_UINT (maxTessellationControlTotalOutputComponents)
+            PRINT_LIMITS_UINT (maxTessellationEvaluationInputComponents)
+            PRINT_LIMITS_UINT (maxTessellationEvaluationOutputComponents)
+            PRINT_LIMITS_UINT (maxGeometryShaderInvocations)
+            PRINT_LIMITS_UINT (maxGeometryInputComponents)
+            PRINT_LIMITS_UINT (maxGeometryOutputComponents)
+            PRINT_LIMITS_UINT (maxGeometryOutputVertices)
+            PRINT_LIMITS_UINT (maxGeometryTotalOutputComponents)
+            PRINT_LIMITS_UINT (maxFragmentInputComponents)
+            PRINT_LIMITS_UINT (maxFragmentOutputAttachments)
+            PRINT_LIMITS_UINT (maxFragmentDualSrcAttachments)
+            PRINT_LIMITS_UINT (maxFragmentCombinedOutputResources)
+            PRINT_LIMITS_UINT (maxComputeSharedMemorySize)
+            PRINT_LIMITS_UINT (maxComputeWorkGroupCount[0])
+            PRINT_LIMITS_UINT (maxComputeWorkGroupCount[1])
+            PRINT_LIMITS_UINT (maxComputeWorkGroupCount[2])
+            PRINT_LIMITS_UINT (maxComputeWorkGroupInvocations)
+            PRINT_LIMITS_UINT (maxComputeWorkGroupSize[0])
+            PRINT_LIMITS_UINT (maxComputeWorkGroupSize[1])
+            PRINT_LIMITS_UINT (maxComputeWorkGroupSize[2])
+            PRINT_LIMITS_UINT (subPixelPrecisionBits)
+            PRINT_LIMITS_UINT (subTexelPrecisionBits)
+            PRINT_LIMITS_UINT (mipmapPrecisionBits)
+            PRINT_LIMITS_UINT (maxDrawIndexedIndexValue)
+            PRINT_LIMITS_UINT (maxDrawIndirectCount)
+            PRINT_LIMITS_FLOAT(maxSamplerLodBias)
+            PRINT_LIMITS_FLOAT(maxSamplerAnisotropy)
+            PRINT_LIMITS_UINT (maxViewports)
+            PRINT_LIMITS_UINT (maxViewportDimensions[0])
+            PRINT_LIMITS_UINT (maxViewportDimensions[1])
+            PRINT_LIMITS_FLOAT(viewportBoundsRange[0])
+            PRINT_LIMITS_FLOAT(viewportBoundsRange[1])
+            PRINT_LIMITS_UINT (viewportSubPixelBits)
+            PRINT_LIMITS_SIZE (minMemoryMapAlignment)
+            PRINT_LIMITS_ULONG(minTexelBufferOffsetAlignment)
+            PRINT_LIMITS_ULONG(minUniformBufferOffsetAlignment)
+            PRINT_LIMITS_ULONG(minStorageBufferOffsetAlignment)
+            PRINT_LIMITS_UINT (minTexelOffset)
+            PRINT_LIMITS_UINT (maxTexelOffset)
+            PRINT_LIMITS_UINT (minTexelGatherOffset)
+            PRINT_LIMITS_UINT (maxTexelGatherOffset)
+            PRINT_LIMITS_FLOAT(minInterpolationOffset)
+            PRINT_LIMITS_FLOAT(maxInterpolationOffset)
+            PRINT_LIMITS_UINT (subPixelInterpolationOffsetBits)
+            PRINT_LIMITS_UINT (maxFramebufferWidth)
+            PRINT_LIMITS_UINT (maxFramebufferHeight)
+            PRINT_LIMITS_UINT (maxFramebufferLayers)
+            PRINT_LIMITS_UINT (framebufferColorSampleCounts)
+            PRINT_LIMITS_UINT (framebufferDepthSampleCounts)
+            PRINT_LIMITS_UINT (framebufferStencilSampleCounts)
+            PRINT_LIMITS_UINT (framebufferNoAttachmentsSampleCounts)
+            PRINT_LIMITS_UINT (maxColorAttachments)
+            PRINT_LIMITS_UINT (sampledImageColorSampleCounts)
+            PRINT_LIMITS_UINT (sampledImageIntegerSampleCounts)
+            PRINT_LIMITS_UINT (sampledImageDepthSampleCounts)
+            PRINT_LIMITS_UINT (sampledImageStencilSampleCounts)
+            PRINT_LIMITS_UINT (storageImageSampleCounts)
+            PRINT_LIMITS_UINT (maxSampleMaskWords)
+            PRINT_LIMITS_UINT (timestampComputeAndGraphics)
+            PRINT_LIMITS_FLOAT(timestampPeriod)
+            PRINT_LIMITS_UINT (maxClipDistances)
+            PRINT_LIMITS_UINT (maxCullDistances)
+            PRINT_LIMITS_UINT (maxCombinedClipAndCullDistances)
+            PRINT_LIMITS_UINT (discreteQueuePriorities)
+            PRINT_LIMITS_FLOAT(pointSizeRange[0])
+            PRINT_LIMITS_FLOAT(pointSizeRange[1])
+            PRINT_LIMITS_FLOAT(lineWidthRange[0])
+            PRINT_LIMITS_FLOAT(lineWidthRange[1])
+            PRINT_LIMITS_FLOAT(pointSizeGranularity)
+            PRINT_LIMITS_FLOAT(lineWidthGranularity)
+            PRINT_LIMITS_UINT(strictLines)
+            PRINT_LIMITS_UINT(standardSampleLocations)
+            PRINT_LIMITS_ULONG(optimalBufferCopyOffsetAlignment)
+            PRINT_LIMITS_ULONG(optimalBufferCopyRowPitchAlignment)
+            PRINT_LIMITS_ULONG(nonCoherentAtomSize)
+#undef PRINT_LIMITS_UINT
+#undef PRINT_LIMITS_ULONG
+#undef PRINT_LIMITS_FLOAT
+#undef PRINT_LIMITS_SIZE
+
+            /* Device Features */
+            nv_msg("  ", "Features:");
+#define PRINT_DEVICE_FEATURE(var) nv_msg("    ", "%-39s: %s", #var,            \
+                                         (vkdp->features[i].var? "yes" : "no"));
+            PRINT_DEVICE_FEATURE(robustBufferAccess)
+            PRINT_DEVICE_FEATURE(fullDrawIndexUint32)
+            PRINT_DEVICE_FEATURE(imageCubeArray)
+            PRINT_DEVICE_FEATURE(independentBlend)
+            PRINT_DEVICE_FEATURE(geometryShader)
+            PRINT_DEVICE_FEATURE(tessellationShader)
+            PRINT_DEVICE_FEATURE(sampleRateShading)
+            PRINT_DEVICE_FEATURE(dualSrcBlend)
+            PRINT_DEVICE_FEATURE(logicOp)
+            PRINT_DEVICE_FEATURE(multiDrawIndirect)
+            PRINT_DEVICE_FEATURE(drawIndirectFirstInstance)
+            PRINT_DEVICE_FEATURE(depthClamp)
+            PRINT_DEVICE_FEATURE(depthBiasClamp)
+            PRINT_DEVICE_FEATURE(fillModeNonSolid)
+            PRINT_DEVICE_FEATURE(depthBounds)
+            PRINT_DEVICE_FEATURE(wideLines)
+            PRINT_DEVICE_FEATURE(largePoints)
+            PRINT_DEVICE_FEATURE(alphaToOne)
+            PRINT_DEVICE_FEATURE(multiViewport)
+            PRINT_DEVICE_FEATURE(samplerAnisotropy)
+            PRINT_DEVICE_FEATURE(textureCompressionETC2)
+            PRINT_DEVICE_FEATURE(textureCompressionASTC_LDR)
+            PRINT_DEVICE_FEATURE(textureCompressionBC)
+            PRINT_DEVICE_FEATURE(occlusionQueryPrecise)
+            PRINT_DEVICE_FEATURE(pipelineStatisticsQuery)
+            PRINT_DEVICE_FEATURE(vertexPipelineStoresAndAtomics)
+            PRINT_DEVICE_FEATURE(fragmentStoresAndAtomics)
+            PRINT_DEVICE_FEATURE(shaderTessellationAndGeometryPointSize)
+            PRINT_DEVICE_FEATURE(shaderImageGatherExtended)
+            PRINT_DEVICE_FEATURE(shaderStorageImageExtendedFormats)
+            PRINT_DEVICE_FEATURE(shaderStorageImageMultisample)
+            PRINT_DEVICE_FEATURE(shaderStorageImageReadWithoutFormat)
+            PRINT_DEVICE_FEATURE(shaderStorageImageWriteWithoutFormat)
+            PRINT_DEVICE_FEATURE(shaderUniformBufferArrayDynamicIndexing)
+            PRINT_DEVICE_FEATURE(shaderSampledImageArrayDynamicIndexing)
+            PRINT_DEVICE_FEATURE(shaderStorageBufferArrayDynamicIndexing)
+            PRINT_DEVICE_FEATURE(shaderStorageImageArrayDynamicIndexing)
+            PRINT_DEVICE_FEATURE(shaderClipDistance)
+            PRINT_DEVICE_FEATURE(shaderCullDistance)
+            PRINT_DEVICE_FEATURE(shaderFloat64)
+            PRINT_DEVICE_FEATURE(shaderInt64)
+            PRINT_DEVICE_FEATURE(shaderInt16)
+            PRINT_DEVICE_FEATURE(shaderResourceResidency)
+            PRINT_DEVICE_FEATURE(shaderResourceMinLod)
+            PRINT_DEVICE_FEATURE(sparseBinding)
+            PRINT_DEVICE_FEATURE(sparseResidencyBuffer)
+            PRINT_DEVICE_FEATURE(sparseResidencyImage2D)
+            PRINT_DEVICE_FEATURE(sparseResidencyImage3D)
+            PRINT_DEVICE_FEATURE(sparseResidency2Samples)
+            PRINT_DEVICE_FEATURE(sparseResidency4Samples)
+            PRINT_DEVICE_FEATURE(sparseResidency8Samples)
+            PRINT_DEVICE_FEATURE(sparseResidency16Samples)
+            PRINT_DEVICE_FEATURE(sparseResidencyAliased)
+            PRINT_DEVICE_FEATURE(variableMultisampleRate)
+            PRINT_DEVICE_FEATURE(inheritedQueries)
+#undef PRINT_DEVICE_FEATURE
+            nv_msg("", "");
+
+            /* Memory Properties */
+            nv_msg("", "### Memory Type Properties - %d ###",
+                   vkdp->memory_properties[i].memoryTypeCount);
+            for (j = 0; j < vkdp->memory_properties[i].memoryTypeCount; j++) {
+                char *mstr = vulkan_get_memory_property_flags(
+                    vkdp->memory_properties[i].memoryTypes[j].propertyFlags);
+                nv_msg("  ", "Memory Type [%d]", j);
+                nv_msg("    ", "Heap Index: %d",
+                       vkdp->memory_properties[i].memoryTypes[j].heapIndex);
+                nv_msg("    ", "Flags     :%s", mstr);
+                nvfree(mstr);
+            }
+            nv_msg("", "");
+
+            nv_msg("", "### Memory Heap Properties - %d ###",
+                   vkdp->memory_properties[i].memoryHeapCount);
+            for (j = 0; j < vkdp->memory_properties[i].memoryHeapCount; j++) {
+                char *mstr = vulkan_get_memory_heap_flags(
+                    vkdp->memory_properties[i].memoryHeaps[j].flags);
+                nv_msg("  ", "Memory Heap [%d]", j);
+
+                nv_msg("    ", "Size : %" PRIu64 "",
+                        vkdp->memory_properties[i].memoryHeaps[j].size);
+                nv_msg("    ", "Flags:%s", mstr);
+                nvfree(mstr);
+            }
+            nv_msg("", "");
+
+            /* Queue Properties */
+            nv_msg("", "### Queue Properties - %d ###",
+                   vkdp->queue_properties_count[i]);
+            for (j = 0; j < vkdp->queue_properties_count[i]; j++) {
+                VkExtent3D e =
+                    vkdp->queue_properties[i][j].minImageTransferGranularity;
+                char *qstr =
+                    vulkan_get_queue_family_flags(
+                        vkdp->queue_properties[i][j].queueFlags);
+                nv_msg("  ", "Queue [%d]", j);
+
+                nv_msg("    ", "Flags:%s", qstr);
+                nv_msg("    ", "Count: %d",
+                       vkdp->queue_properties[i][j].queueCount);
+                nv_msg("    ",
+                       "Min Image Transfer Granularity (WxHxD): %dx%dx%d",
+                       e.width, e.height, e.depth);
+                nvfree(qstr);
+            }
+            nv_msg("", "");
+
+            nv_msg("", "### Formats ###");
+            for (j = 0; j < vkdp->formats_count[i]; j++) {
+                nv_msg("    ", "Format [%d] - Linear : 0x%x",
+                       j, vkdp->formats[i][j].linearTilingFeatures);
+                print_vulkan_format_feature_flags(
+                    vkdp->formats[i][j].linearTilingFeatures);
+                nv_msg("    ", "Format [%d] - Optimal: 0x%x",
+                       j, vkdp->formats[i][j].optimalTilingFeatures);
+                print_vulkan_format_feature_flags(
+                    vkdp->formats[i][j].optimalTilingFeatures);
+                nv_msg("    ", "Format [%d] - Buffer : 0x%x",
+                       j, vkdp->formats[i][j].bufferFeatures);
+                print_vulkan_format_feature_flags(
+                    vkdp->formats[i][j].bufferFeatures);
+                nv_msg("", "");
+            }
+            nv_msg("", "");
+
+        }
+
+        NvCtrlFreeVkLayerAttr(vklp);
+        nvfree(vklp);
+        NvCtrlFreeVkDeviceAttr(vkdp);
+        nvfree(vkdp);
+
+    } /* Done looking at all screens */
+
+
+    /* Fall through */
+ finish:
+    if (status == NvCtrlError) {
+        nv_error_msg("Error fetching Vulcan Information: %s",
+                     NvCtrlAttributesStrError(status) );
+    }
+
+    /* Free any leftover memory used */
+    SAFE_FREE(vk_api_version);
+
+    NvCtrlFreeAllSystems(systems);
+
+} /* print_vulkaninfo() */
 

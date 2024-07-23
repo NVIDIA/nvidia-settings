@@ -262,6 +262,16 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
         if (subsystems & NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM) {
             h->egl = NvCtrlInitEglAttributes(h);
         }
+
+
+        /*
+         * initialize the Vulkan extension and attributes; it is OK if
+         * this fails
+         */
+
+        if (subsystems & NV_CTRL_ATTRIBUTES_VK_SUBSYSTEM) {
+            h->vulkan = NvCtrlInitVkAttributes(h);
+        }
     }
 
     /*
@@ -934,6 +944,14 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
         return NvCtrlEglGetVoidAttribute(h, display_mask, attr, ptr);
     }
 
+    if ( attr >= NV_CTRL_ATTR_VK_BASE &&
+         attr <= NV_CTRL_ATTR_VK_LAST_ATTRIBUTE ) {
+        if (!(h->vulkan)) {
+            return NvCtrlMissingExtension;
+        }
+        return NvCtrlVkGetVoidAttribute(h, display_mask, attr, ptr);
+    }
+
     return NvCtrlNoAttribute;
 
 } /* NvCtrlGetVoidDisplayAttribute() */
@@ -1160,6 +1178,12 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
                 return NvCtrlEglGetStringAttribute(h, display_mask, attr, ptr);
             }
 
+            if ((attr >= NV_CTRL_STRING_VK_BASE) &&
+                (attr <= NV_CTRL_STRING_VK_LAST_ATTRIBUTE)) {
+                if (!h->vulkan) return NvCtrlMissingExtension;
+                return NvCtrlVkGetStringAttribute(h, display_mask, attr, ptr);
+            }
+
             if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
                 (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
                 if (!h->xrandr) return NvCtrlMissingExtension;
@@ -1342,6 +1366,9 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
     }
     if ( h->egl ) {
         NvCtrlEglAttributesClose(h);
+    }
+    if ( h->vulkan ) {
+        NvCtrlVkAttributesClose(h);
     }
     if ( h->xrandr ) {
         NvCtrlXrandrAttributesClose(h);   

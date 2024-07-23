@@ -208,7 +208,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
     MAKE_SIGNAL(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT);
     MAKE_SIGNAL(NV_CTRL_MODE_SET_EVENT);
     MAKE_SIGNAL(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE);
-    MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_LINK_RATE);
+    MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ);
     MAKE_SIGNAL(NV_CTRL_STEREO_EYES_EXCHANGE);
     MAKE_SIGNAL(NV_CTRL_NO_SCANOUT);
     MAKE_SIGNAL(NV_CTRL_X_SERVER_UNIQUE_ID);
@@ -307,7 +307,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
 #warning "There are attributes that do not emit signals!"
 #endif
 

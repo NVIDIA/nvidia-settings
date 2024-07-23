@@ -21,6 +21,7 @@
 #define __GLXINFO_H__
 
 #include <GL/glx.h>
+#include <vulkan/vulkan.h>
 #include "query-assign.h"
 
 
@@ -36,8 +37,16 @@ const char * egl_color_buffer_type_abbrev(int type);
 const char * egl_config_caveat_abbrev(int type);
 const char * egl_transparent_type_abbrev(int type);
 
+const char *vulkan_get_physical_device_type(VkPhysicalDeviceType type);
+char *vulkan_get_version_string(uint32_t);
+char *vulkan_get_queue_family_flags(VkQueueFlags flags);
+char *vulkan_get_memory_property_flags(VkMemoryPropertyFlagBits flags);
+char *vulkan_get_memory_heap_flags(VkMemoryHeapFlags flags);
+char *vulkan_get_format_feature_flags(VkFormatFeatureFlags flags);
+
 void print_glxinfo(const char *display_name, CtrlSystemList *systems);
 void print_eglinfo(const char *display_name, CtrlSystemList *systems);
+void print_vulkaninfo(const char *display_name, CtrlSystemList *systems);
 
 
 #endif /* __GLXINFO_H__ */

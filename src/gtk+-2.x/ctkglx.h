@@ -64,6 +64,7 @@ struct _CtkGLX
     gboolean egl_fbconfigs_available;
     gboolean glx_available;
     gboolean egl_available;
+    gboolean vulkan_available;
 };
 
 struct _CtkGLXClass
