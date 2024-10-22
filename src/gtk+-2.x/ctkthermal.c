@@ -1156,6 +1156,8 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
     int cur_cooler_idx = 0;
     int cur_sensor_idx = 0;
     Bool thermal_sensor_target_type_supported = FALSE;
+    gchar *nvml_version = NULL;
+    int cuda = 0, nvmlMajor = 0, nvmlMinor = 0;
 
     /* make sure we have a handle */
 
@@ -1177,6 +1179,18 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
         ((major > 1) || ((major == 1) && (minor > 22)))) {
         thermal_sensor_target_type_supported = TRUE;
     }
+
+    /* Set thermal_sensor_target_type_supported flag based on NVML version. */
+    NvCtrlGetStringAttribute(ctrl_target,
+                             NV_CTRL_STRING_NVML_VERSION,
+                             &nvml_version);
+
+    /* NVML version is of form <Max CUDA Supported> DOT <MAJOR> DOT <MINOR> */
+    if ((sscanf(nvml_version, "%d.%d.%d", &cuda, &nvmlMajor, &nvmlMinor) == 3) &&
+        (nvmlMajor >= 565)) {
+        thermal_sensor_target_type_supported = TRUE;
+    }
+    free(nvml_version);
 
     if (!thermal_sensor_target_type_supported) {
         /* check if this screen supports thermal querying */

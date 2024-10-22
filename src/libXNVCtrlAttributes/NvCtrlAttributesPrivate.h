@@ -207,7 +207,9 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetPowerUsage)                 (*DeviceGetPowerUsage);
         typeof(nvmlDeviceGetPowerManagementDefaultLimit)     (*DeviceGetPowerManagementDefaultLimit);
         typeof(nvmlDeviceGetPowerManagementLimitConstraints) (*DeviceGetPowerManagementLimitConstraints);
-
+        typeof(nvmlDeviceGetThermalSettings)                 (*DeviceGetThermalSettings);
+        typeof(nvmlDeviceGetFanSpeedRPM)                     (*DeviceGetFanSpeedRPM);
+        typeof(nvmlDeviceGetCoolerInfo)                      (*DeviceGetCoolerInfo);
     } lib;
 
     unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */

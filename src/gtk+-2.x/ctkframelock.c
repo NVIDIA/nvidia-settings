@@ -426,6 +426,43 @@ static void select_widget(GtkWidget *widget, gint state)
  */
 
 
+/** label_set_text() *************************************************
+ *
+ * Set label text color to theme default, so it will be visible on the UI.
+ *
+ */
+static void label_set_text(
+    GtkWidget *label,
+    const char *text
+)
+{
+#ifdef CTK_GTK3
+    GtkStyleContext *context;
+    GdkRGBA text_color = {0};
+    char *markup;
+
+    context = gtk_style_context_new();
+    gtk_style_context_lookup_color(context, "theme_text_color", &text_color);
+    g_object_unref(context);
+
+    /*
+     * Takes An RGB color specification such as ‘#00FF00’ or a color name such
+     * as ‘red’.
+     */
+    markup = g_markup_printf_escaped("<span foreground=\"#%02X%02X%02X\">%s</span>",
+                                     (guint)(255 * text_color.red),
+                                     (guint)(255 * text_color.green),
+                                     (guint)(255 * text_color.blue),
+                                     text);
+    gtk_label_set_markup(GTK_LABEL(label), markup);
+    g_free(markup);
+#else
+    gtk_label_set_text(GTK_LABEL(label), text);
+#endif
+}
+
+
+
 /** create_error_msg_dialog() ****************************************
  *
  * Creates the error message dialog.  This dialog is used by various
@@ -1009,19 +1046,16 @@ static void update_entry_label(CtkFramelock *ctk_framelock,
 
     switch (entry->data_type) {
     case ENTRY_DATA_FRAMELOCK:
-        gtk_label_set_text(GTK_LABEL
-                           (((nvFrameLockDataPtr)(entry->data))->label),
-                           str?str:"Unknown Quadro Sync");
+        label_set_text(((nvFrameLockDataPtr)(entry->data))->label,
+                       str?str:"Unknown Quadro Sync");
         break;
     case ENTRY_DATA_GPU:
-        gtk_label_set_text(GTK_LABEL
-                           (((nvGPUDataPtr)(entry->data))->label),
-                           str?str:"Unknown GPU");
+        label_set_text(((nvGPUDataPtr)(entry->data))->label,
+                       str?str:"Unknown GPU");
         break;
     case ENTRY_DATA_DISPLAY:
-        gtk_label_set_text(GTK_LABEL
-                           (((nvDisplayDataPtr)(entry->data))->label),
-                           str?str:"Unknown Display");
+        label_set_text(((nvDisplayDataPtr)(entry->data))->label,
+                       str?str:"Unknown Display");
         break;
     }
 
@@ -3699,15 +3733,15 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
         NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
         snprintf(str, 32, "%d.%.3d Hz", (rate / 1000), (rate % 1000));
     }
-    gtk_label_set_text(GTK_LABEL(data->rate_text), str);
-    
+    label_set_text(data->rate_text, str);
+
     /* Sync Delay (Skew) */
     gtk_widget_set_sensitive(data->delay_label, framelock_enabled);
     gtk_widget_set_sensitive(data->delay_text, framelock_enabled);
     fvalue = ((gfloat) delay) *
              ((gfloat) data->sync_delay_resolution) / 1000.0;
     snprintf(str, 32, "%.2f uS", fvalue); // 10.2f
-    gtk_label_set_text(GTK_LABEL(data->delay_text), str);
+    label_set_text(data->delay_text, str);
 
     /* Incoming signal rate */
     gtk_widget_set_sensitive(data->house_sync_rate_label, framelock_enabled);
@@ -3721,8 +3755,8 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     } else {
         snprintf(str, 32, "Unknown");
     }
-    gtk_label_set_text(GTK_LABEL(data->house_sync_rate_text), str);
-    
+    label_set_text(data->house_sync_rate_text, str);
+
     /* House Sync and Ports are always active */
     update_image(data->house_hbox,
                  (house ? ctk_framelock->led_green_pixbuf :
@@ -4263,7 +4297,7 @@ static void update_display_rate_txt(nvDisplayDataPtr data,
     snprintf(str, 32, "%.*f Hz%s", precision, fvalue,
              data->hdmi3D ? " (Doubled for HDMI 3D)" : "");
 
-    gtk_label_set_text(GTK_LABEL(data->rate_text), str);
+    label_set_text(data->rate_text, str);
 }
 
 
@@ -5623,24 +5657,28 @@ static void add_display_device(CtkFramelock *ctk_framelock,
 
     /* Create, pack and link the display device UI widgets */
 
-    display_data->label           = gtk_label_new("");
+    display_data->label           = gtk_label_new(NULL);
 
-    display_data->server_label    = gtk_label_new("Server");
+    display_data->server_label    = gtk_label_new(NULL);
+    label_set_text(display_data->server_label, "Server");
     display_data->server_checkbox = gtk_check_button_new();
     ctk_config_set_tooltip(ctk_framelock->ctk_config,
                            display_data->server_checkbox,
                            __server_checkbox_help);
 
-    display_data->client_label    = gtk_label_new("Client");
+    display_data->client_label    = gtk_label_new(NULL);
+    label_set_text(display_data->client_label, "Client");
     display_data->client_checkbox = gtk_check_button_new();
     ctk_config_set_tooltip(ctk_framelock->ctk_config,
                            display_data->client_checkbox,
                            __client_checkbox_help);
 
-    display_data->rate_label      = gtk_label_new("Refresh:");
-    display_data->rate_text       = gtk_label_new("");
+    display_data->rate_label      = gtk_label_new(NULL);
+    label_set_text(display_data->rate_label, "Refresh:");
+    display_data->rate_text       = gtk_label_new(NULL);
 
-    display_data->stereo_label    = gtk_label_new("Stereo");
+    display_data->stereo_label    = gtk_label_new(NULL);
+    label_set_text(display_data->stereo_label, "Stereo");
     display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
 
     entry = list_entry_new_with_display(display_data, tree);
@@ -5800,9 +5838,10 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
 
         /* Create the GPU handle and label */
         gpu_data->ctrl_target = ctrl_target;
-        gpu_data->label = gtk_label_new("");
+        gpu_data->label = gtk_label_new(NULL);
 
-        gpu_data->timing_label = gtk_label_new("Timing");
+        gpu_data->timing_label = gtk_label_new(NULL);
+        label_set_text(gpu_data->timing_label, "Timing");
         gpu_data->timing_hbox = gtk_hbox_new(FALSE, 0);
 
         /* Create the GPU list entry */
@@ -5936,34 +5975,43 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         framelock_data->board_name = product_name;
 
         /* Create the frame lock widgets */
-        framelock_data->label = gtk_label_new("");
+        framelock_data->label = gtk_label_new(NULL);
         
-        framelock_data->receiving_label = gtk_label_new("Receiving");
+        framelock_data->receiving_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->receiving_label, "Receiving");
         framelock_data->receiving_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->rate_label = gtk_label_new("Rate:");
-        framelock_data->rate_text = gtk_label_new("");
+        framelock_data->rate_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->rate_label, "Rate:");
+        framelock_data->rate_text = gtk_label_new(NULL);
 
-        framelock_data->delay_label = gtk_label_new("Delay:");
-        framelock_data->delay_text = gtk_label_new("");
+        framelock_data->delay_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->delay_label, "Delay:");
+        framelock_data->delay_text = gtk_label_new(NULL);
 
-        framelock_data->house_label = gtk_label_new("House");
+        framelock_data->house_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->house_label, "House");
         framelock_data->house_hbox = gtk_hbox_new(FALSE, 0);
         
-        framelock_data->house_sync_rate_label =
-            gtk_label_new("House Sync Rate:");
-        framelock_data->house_sync_rate_text = gtk_label_new("");
+        framelock_data->house_sync_rate_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->house_sync_rate_label,
+                       "House Sync Rate:");
+        framelock_data->house_sync_rate_text = gtk_label_new(NULL);
 
-        framelock_data->port0_label = gtk_label_new("Port 0");
+        framelock_data->port0_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->port0_label, "Port 0");
         framelock_data->port0_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->port1_label = gtk_label_new("Port 1");
+        framelock_data->port1_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->port1_label, "Port 1");
         framelock_data->port1_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->firmware_version_label =
-            gtk_label_new("Firmware Version:");
-        framelock_data->firmware_version_text =
-            gtk_label_new(firmware_version_str);
+        framelock_data->firmware_version_label = gtk_label_new(NULL);
+        label_set_text(framelock_data->firmware_version_label,
+                       "Firmware Version:");
+        framelock_data->firmware_version_text = gtk_label_new(NULL);
+        label_set_text(framelock_data->firmware_version_text,
+                       firmware_version_str);
         g_free(firmware_version_str);
 
         framelock_data->extra_info_hbox = gtk_hbox_new(FALSE, 5);

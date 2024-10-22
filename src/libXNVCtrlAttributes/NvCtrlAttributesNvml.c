@@ -266,7 +266,9 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, DeviceGetPowerUsage);
     GET_SYMBOL(_OPTIONAL, DeviceGetPowerManagementLimitConstraints);
     GET_SYMBOL(_OPTIONAL, DeviceGetPowerManagementDefaultLimit);
-
+    GET_SYMBOL(_OPTIONAL, DeviceGetThermalSettings);
+    GET_SYMBOL(_OPTIONAL, DeviceGetFanSpeedRPM);
+    GET_SYMBOL(_OPTIONAL, DeviceGetCoolerInfo);
 #undef GET_SYMBOL
 #undef EXPAND_STRING
 #undef STRINGIFY_SYMBOL
@@ -428,16 +430,11 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
         nvmlDevice_t device;
         nvmlReturn_t ret = nvml->lib.DeviceGetHandleByIndex(devIdx, &device);
         if (ret == NVML_SUCCESS) {
-            unsigned int temp;
             unsigned int fans;
+            nvmlGpuThermalSettings_t pThermalSettings;
 
-            /*
-             * XXX Currently, NVML only allows to get the GPU temperature so
-             *     check for nvmlDeviceGetTemperature() success to figure
-             *     out if that sensor is available.
-             */
-            ret = nvml->lib.DeviceGetTemperature(device, NVML_TEMPERATURE_GPU,
-                                                 &temp);
+            ret = nvml->lib.DeviceGetThermalSettings(device, NVML_THERMAL_TARGET_ALL, //sensorIndex
+                                                     &pThermalSettings);
             if (ret == NVML_SUCCESS) {
                 if ((h->target_type == THERMAL_SENSOR_TARGET) &&
                     (h->target_id == nvml->sensorCount)) {
@@ -445,8 +442,8 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
                     nvml->deviceIdx = devIdx;
                 }
 
-                nvml->sensorCountPerGPU[devIdx] = 1;
-                nvml->sensorCount++;
+                nvml->sensorCountPerGPU[devIdx] = pThermalSettings.count;
+                nvml->sensorCount += pThermalSettings.count;
             }
 
             ret = nvml->lib.DeviceGetNumFans(device, &fans);
@@ -1273,6 +1270,88 @@ static void getDeviceAndTargetIndex(const NvCtrlAttributePrivateHandle *h,
     return;
 }
 
+static void
+convertNvmlThermControllerToNvctrlSensorProvider(nvmlThermalController_t controller,
+                                                 unsigned int *sensorProvider)
+{
+    switch (controller) {
+        case NVML_THERMAL_CONTROLLER_NONE:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_NONE;
+            break;
+        case NVML_THERMAL_CONTROLLER_GPU_INTERNAL:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_GPU_INTERNAL;
+            break;
+        case NVML_THERMAL_CONTROLLER_ADM1032:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_ADM1032;
+            break;
+        case NVML_THERMAL_CONTROLLER_ADT7461:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7461;
+            break;
+        case NVML_THERMAL_CONTROLLER_MAX6649:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX6649;
+            break;
+        case NVML_THERMAL_CONTROLLER_MAX1617:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX1617;
+            break;
+        case NVML_THERMAL_CONTROLLER_LM99:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_LM99;
+            break;
+        case NVML_THERMAL_CONTROLLER_LM89:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_LM89;
+            break;
+        case NVML_THERMAL_CONTROLLER_LM64:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_LM64;
+            break;
+        case NVML_THERMAL_CONTROLLER_G781:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_G781;
+            break;
+        case NVML_THERMAL_CONTROLLER_ADT7473:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7473;
+            break;
+        case NVML_THERMAL_CONTROLLER_SBMAX6649:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_SBMAX6649;
+            break;
+        case NVML_THERMAL_CONTROLLER_VBIOSEVT:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_VBIOSEVT;
+            break;
+        case NVML_THERMAL_CONTROLLER_OS:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_OS;
+            break;
+        case NVML_THERMAL_CONTROLLER_UNKNOWN:
+        default:
+            *sensorProvider = NV_CTRL_THERMAL_SENSOR_PROVIDER_UNKNOWN;
+    }
+    return;
+}
+
+static void
+convertNvmlThermTargetToNvctrlThermTarget(nvmlThermalTarget_t target,
+                                          unsigned int *sensorTarget)
+{
+    switch (target) {
+        case NVML_THERMAL_TARGET_NONE:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_NONE;
+            break;
+        case NVML_THERMAL_TARGET_GPU:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_GPU;
+            break;
+        case NVML_THERMAL_TARGET_MEMORY:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_MEMORY;
+            break;
+        case NVML_THERMAL_TARGET_POWER_SUPPLY:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_POWER_SUPPLY;
+            break;
+        case NVML_THERMAL_TARGET_BOARD:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_BOARD;
+            break;
+        case NVML_THERMAL_TARGET_UNKNOWN:
+        default:
+            *sensorTarget = NV_CTRL_THERMAL_SENSOR_TARGET_UNKNOWN;
+            break;
+    }
+    return;
+}
+
 
 static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
                                                   int attr, int64_t *val)
@@ -1301,14 +1380,30 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
-               
             case NV_CTRL_THERMAL_SENSOR_PROVIDER:
             case NV_CTRL_THERMAL_SENSOR_TARGET:
-                /*
-                 * XXX We'll eventually need to add support for this attributes
-                 *     through NVML
-                 */
-                return NvCtrlNotSupported;
+                {
+                    nvmlGpuThermalSettings_t pThermalSettings;
+
+                    ret = nvml->lib.DeviceGetThermalSettings(device, NVML_THERMAL_TARGET_ALL, //sensorIndex
+                                                             &pThermalSettings);
+                    if (ret == NVML_SUCCESS) {
+                        switch (attr) {
+                            case NV_CTRL_THERMAL_SENSOR_READING:
+                                res = pThermalSettings.sensor[sensorId].currentTemp;
+                                break;
+                            case NV_CTRL_THERMAL_SENSOR_PROVIDER:
+                                convertNvmlThermControllerToNvctrlSensorProvider
+                                    (pThermalSettings.sensor[sensorId].controller, &res);
+                                break;
+                            case NV_CTRL_THERMAL_SENSOR_TARGET:
+                                convertNvmlThermTargetToNvctrlThermTarget
+                                    (pThermalSettings.sensor[sensorId].target, &res);
+                                break;
+                        }
+                    }
+                    break;
+                }
 
             default:
                 /* Did we forget to handle a sensor integer attribute? */
@@ -1327,6 +1422,50 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     /* An NVML error occurred */
     printNvmlError(ret);
     return NvCtrlNotSupported;
+}
+
+static void
+convertNvmlCoolerTargetToNvctrlCoolerTarget(nvmlCoolerTarget_t target,
+                                            unsigned int *coolerTarget)
+{
+    switch (target) {
+        case NVML_THERMAL_COOLER_TARGET_NONE:
+            *coolerTarget = NV_CTRL_THERMAL_COOLER_TARGET_NONE;
+            break;
+        case NVML_THERMAL_COOLER_TARGET_GPU:
+            *coolerTarget = NV_CTRL_THERMAL_COOLER_TARGET_GPU;
+            break;
+        case NVML_THERMAL_COOLER_TARGET_MEMORY:
+            *coolerTarget = NV_CTRL_THERMAL_COOLER_TARGET_MEMORY;
+            break;
+        case NVML_THERMAL_COOLER_TARGET_POWER_SUPPLY:
+            *coolerTarget = NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY;
+            break;
+        case NVML_THERMAL_COOLER_TARGET_GPU_RELATED:
+        default:
+            *coolerTarget = NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED;
+            break;
+    }
+    return;
+}
+
+static void
+convertNvmlCoolerSignalToNvctrlCoolerControlType(nvmlCoolerControl_t signalType,
+                                                 unsigned int *coolerControlType)
+{
+    switch (signalType) {
+        case NVML_THERMAL_COOLER_SIGNAL_NONE:
+            *coolerControlType = NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE;
+            break;
+        case NVML_THERMAL_COOLER_SIGNAL_TOGGLE:
+            *coolerControlType = NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE;
+            break;
+        case NVML_THERMAL_COOLER_SIGNAL_VARIABLE:
+        default:
+            *coolerControlType = NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE;
+            break;
+    }
+    return;
 }
 
 static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
@@ -1360,15 +1499,37 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL:
                 ret = nvml->lib.DeviceGetFanSpeed_v2(device, coolerId, &res);
                 break;
-
-            case NV_CTRL_THERMAL_COOLER_SPEED:
-            case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
             case NV_CTRL_THERMAL_COOLER_TARGET:
-                /*
-                 * XXX We'll eventually need to add support for this attributes
-                 *     through NVML
-                 */
-                return NvCtrlNotSupported;
+            case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
+                {
+                    nvmlCoolerInfo_t coolerInfo;
+                    coolerInfo.version = nvmlCoolerInfo_v1;
+                    coolerInfo.index = coolerId;
+                    ret = nvml->lib.DeviceGetCoolerInfo(device, &coolerInfo);
+                    if (ret == NVML_SUCCESS) {
+                        switch (attr) {
+                            case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
+                                convertNvmlCoolerSignalToNvctrlCoolerControlType(coolerInfo.signalType, &res);
+                                break;
+                            case NV_CTRL_THERMAL_COOLER_TARGET:
+                                convertNvmlCoolerTargetToNvctrlCoolerTarget(coolerInfo.target, &res);
+                                break;
+                        }
+                    }
+                }
+                break;
+            case NV_CTRL_THERMAL_COOLER_SPEED:
+                {
+                    nvmlFanSpeedInfo_t fanSpeed;
+                    fanSpeed.version = nvmlFanSpeedInfo_v1;
+                    fanSpeed.fan = coolerId;
+                    ret = nvml->lib.DeviceGetFanSpeedRPM(device, &fanSpeed);
+                    if (ret == NVML_SUCCESS) {
+                        *val = fanSpeed.speed;
+                        return NvCtrlSuccess;
+                    }
+                }
+                break;
 
             default:
                 /* Did we forget to handle a cooler integer attribute? */
@@ -1726,6 +1887,46 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
                 }
                 break;
             }
+            case NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU:
+            {
+                unsigned int *sensor_data;
+                unsigned int count = 1;
+                int offset = 0;
+                int i = 0;
+                nvmlGpuThermalSettings_t pThermalSettings;
+
+                ret = nvml->lib.DeviceGetThermalSettings(device,
+                                                         NVML_THERMAL_TARGET_ALL,
+                                                         &pThermalSettings);
+                if (ret != NVML_SUCCESS) {
+                    return NvCtrlNotSupported;
+                }
+
+                count = pThermalSettings.count;
+
+                /*
+                 * The format of the returned data is:
+                 *
+                 * int       unsigned int number of SENSORS
+                 * int * n   unsigned int SENSOR indices
+                 */
+
+                *len = (count + 1) * sizeof(unsigned int);
+                sensor_data = (unsigned int *) nvalloc(*len);
+                memset(sensor_data, 0, *len);
+                *data = (unsigned char *) sensor_data;
+
+                /* Calculate global sensor index offset for this GPU */
+                for (i = 0; i < nvml->deviceIdx; i++) {
+                    offset += nvml->sensorCountPerGPU[i];
+                }
+
+                sensor_data[0] = count;
+                for (i = 0; i < count; i++) {
+                    sensor_data[i+1] = i + offset;
+                }
+                break;
+            }
             case NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT:
                 ret = getDeviceMemoryCounts(ctrl_target, nvml, device,
                                             NVML_MEMORY_ERROR_TYPE_CORRECTED,
@@ -1751,7 +1952,6 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
                                             data, len);
                 break;
             case NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU:
-            case NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU:
             case NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU:
             case NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU:
             case NV_CTRL_BINARY_DATA_GPU_FLAGS:
@@ -2106,14 +2306,22 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
+                {
+                    nvmlGpuThermalSettings_t pThermalSettings;
+
+                    ret = nvml->lib.DeviceGetThermalSettings(device, NVML_THERMAL_TARGET_ALL, //sensorIndex
+                                                             &pThermalSettings);
+                    if (ret == NVML_SUCCESS) {
+                        val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_RANGE;
+                        val->range.min = pThermalSettings.sensor[sensorId].defaultMinTemp;
+                        val->range.max = pThermalSettings.sensor[sensorId].defaultMaxTemp;
+                    }
+                    break;
+                }
             case NV_CTRL_THERMAL_SENSOR_PROVIDER:
             case NV_CTRL_THERMAL_SENSOR_TARGET:
-                /*
-                 * XXX We'll eventually need to add support for this attributes
-                 *     through NVML
-                 */
-                return NvCtrlAttributeNotAvailable;
-
+                val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
+                break;
             default:
                 /* The attribute queried is not sensor-targeted */
                 return NvCtrlAttributeNotAvailable;
@@ -2177,11 +2385,8 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
             case NV_CTRL_THERMAL_COOLER_SPEED:
             case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
             case NV_CTRL_THERMAL_COOLER_TARGET:
-                /*
-                 * XXX We'll eventually need to add support for this attributes
-                 *     through NVML
-                 */
-                return NvCtrlAttributeNotAvailable;
+                val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
+                break;
 
             default:
                 /* The attribute queried is not fan-targeted */
@@ -2311,9 +2516,19 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
             perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
             break;
 
+        case NV_CTRL_THERMAL_COOLER_CONTROL_TYPE:
+        case NV_CTRL_THERMAL_COOLER_TARGET:
+        case NV_CTRL_THERMAL_COOLER_SPEED:
         case NV_CTRL_THERMAL_COOLER_LEVEL:
         case NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL:
             perms->valid_targets = CTRL_TARGET_PERM_BIT(COOLER_TARGET);
+            perms->read = NV_TRUE;
+            break;
+
+        case NV_CTRL_THERMAL_SENSOR_READING:
+        case NV_CTRL_THERMAL_SENSOR_PROVIDER:
+        case NV_CTRL_THERMAL_SENSOR_TARGET:
+            perms->valid_targets = CTRL_TARGET_PERM_BIT(THERMAL_SENSOR_TARGET);
             perms->read = NV_TRUE;
             break;
 
