@@ -1186,7 +1186,8 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
                              &nvml_version);
 
     /* NVML version is of form <Max CUDA Supported> DOT <MAJOR> DOT <MINOR> */
-    if ((sscanf(nvml_version, "%d.%d.%d", &cuda, &nvmlMajor, &nvmlMinor) == 3) &&
+    if (nvml_version &&
+        (sscanf(nvml_version, "%d.%d.%d", &cuda, &nvmlMajor, &nvmlMinor) == 3) &&
         (nvmlMajor >= 565)) {
         thermal_sensor_target_type_supported = TRUE;
     }
