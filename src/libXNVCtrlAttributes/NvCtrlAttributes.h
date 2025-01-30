@@ -319,6 +319,7 @@ typedef enum {
     NvCtrlWriteOnlyAttribute,
     NvCtrlAttributeNotAvailable,
     NvCtrlNotSupported,
+    NvCtrlNoPermission,
     NvCtrlError
 } ReturnStatus;
 

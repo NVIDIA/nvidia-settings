@@ -210,6 +210,13 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetThermalSettings)                 (*DeviceGetThermalSettings);
         typeof(nvmlDeviceGetFanSpeedRPM)                     (*DeviceGetFanSpeedRPM);
         typeof(nvmlDeviceGetCoolerInfo)                      (*DeviceGetCoolerInfo);
+        typeof(nvmlDeviceGetSupportedPerformanceStates)      (*DeviceGetSupportedPerformanceStates);
+        typeof(nvmlDeviceGetClockOffsets)                    (*DeviceGetClockOffsets);
+        typeof(nvmlDeviceSetClockOffsets)                    (*DeviceSetClockOffsets);
+        typeof(nvmlDeviceGetPerformanceModes)                (*DeviceGetPerformanceModes);
+        typeof(nvmlDeviceGetCurrentClockFreqs)               (*DeviceGetCurrentClockFreqs);
+        typeof(nvmlDeviceGetPerformanceState)                (*DeviceGetPerformanceState);
+        typeof(nvmlDeviceGetArchitecture)                    (*DeviceGetArchitecture);
     } lib;
 
     unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */

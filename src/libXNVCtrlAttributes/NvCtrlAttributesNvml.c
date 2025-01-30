@@ -269,6 +269,13 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, DeviceGetThermalSettings);
     GET_SYMBOL(_OPTIONAL, DeviceGetFanSpeedRPM);
     GET_SYMBOL(_OPTIONAL, DeviceGetCoolerInfo);
+    GET_SYMBOL(_OPTIONAL, DeviceGetClockOffsets);
+    GET_SYMBOL(_OPTIONAL, DeviceSetClockOffsets);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPerformanceModes);
+    GET_SYMBOL(_OPTIONAL, DeviceGetCurrentClockFreqs);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPerformanceState);
+    GET_SYMBOL(_OPTIONAL, DeviceGetSupportedPerformanceStates);
+    GET_SYMBOL(_OPTIONAL, DeviceGetArchitecture);
 #undef GET_SYMBOL
 #undef EXPAND_STRING
 #undef STRINGIFY_SYMBOL
@@ -596,7 +603,7 @@ static ReturnStatus NvCtrlNvmlGetGeneralStringAttribute(const CtrlTarget *ctrl_t
 static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_target,
                                                     int attr, char **ptr)
 {
-    char res[MAX_NVML_STR_LEN];
+    char res[NVML_PERF_MODES_BUFFER_SIZE];
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
     const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
@@ -647,9 +654,31 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
 
                 break;
             }
-            case NV_CTRL_STRING_SLI_MODE:
             case NV_CTRL_STRING_PERFORMANCE_MODES:
+            {
+                nvmlDevicePerfModes_t perfModes;
+
+                perfModes.version = nvmlDevicePerfModes_v1;
+                ret = nvml->lib.DeviceGetPerformanceModes(device, &perfModes);
+                if (ret == NVML_SUCCESS) {
+                    strcpy(res, perfModes.str);
+                }
+                break;
+            }
+
             case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
+            {
+                nvmlDeviceCurrentClockFreqs_t currentClockFreqs;
+
+                currentClockFreqs.version = nvmlDeviceCurrentClockFreqs_v1;
+                ret = nvml->lib.DeviceGetCurrentClockFreqs(device, &currentClockFreqs);
+                if (ret == NVML_SUCCESS) {
+                    strcpy(res, currentClockFreqs.str);
+                }
+                break;
+            }
+
+            case NV_CTRL_STRING_SLI_MODE:
             case NV_CTRL_STRING_MULTIGPU_MODE:
                 /*
                  * XXX We'll eventually need to add support for this attributes
@@ -809,7 +838,74 @@ ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
     }
 }
 
+static nvmlReturn_t nvmlClockOffsetHelper(nvmlDevice_t device,
+                                          const NvCtrlNvmlAttributes *nvml,
+                                          int attr, int64_t *val,
+                                          CtrlAttributeValidValues *valid_values,
+                                          int *setVal)
+{
+    nvmlReturn_t ret;
 
+    switch (attr) {
+        case NV_CTRL_GPU_NVCLOCK_OFFSET:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+            {
+                nvmlDeviceArchitecture_t arch;
+
+                /* attributes are supported on Maxwell GPUs only */
+                ret = nvml->lib.DeviceGetArchitecture(device, &arch);
+                if ((ret != NVML_SUCCESS) || (arch != NVML_DEVICE_ARCH_MAXWELL)) {
+                    return NVML_ERROR_NOT_SUPPORTED;
+                }
+                /* fallthrough to case
+                 * NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS */
+                __attribute__((fallthrough));
+            }
+        case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+            {
+                nvmlClockOffset_t info;
+
+                switch (attr) {
+                    case NV_CTRL_GPU_NVCLOCK_OFFSET:
+                    case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+                        info.type = NVML_CLOCK_GRAPHICS;
+                        break;
+                    case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+                    case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+                        info.type = NVML_CLOCK_MEM;
+                        break;
+                }
+                info.version = nvmlClockOffset_v1;
+                info.pstate = NVML_PSTATE_0;
+                if (val || valid_values) {
+                    /* get current clock offset and valid values */
+                    ret = nvml->lib.DeviceGetClockOffsets(device, &info);
+
+                    if (ret != NVML_SUCCESS) {
+                        return ret;
+                    }
+                    if (val) {
+                        *val = info.clockOffsetMHz;
+                    }
+                    if (valid_values) {
+                        valid_values->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_RANGE;
+                        valid_values->range.min = info.minClockOffsetMHz;
+                        valid_values->range.max = info.maxClockOffsetMHz;
+                    }
+
+                    return NVML_SUCCESS;
+                }
+                if (setVal) {
+                    /* set new clock offset value */
+                    info.clockOffsetMHz = *setVal;
+                    ret = nvml->lib.DeviceSetClockOffsets(device, &info);
+                    return ret;
+                }
+            }
+    }
+    return NVML_SUCCESS;
+}
 
 /*
  * Get NVML Attribute Values
@@ -1069,11 +1165,45 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 }
                 break;
 
+            case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
+                {
+                    nvmlPstates_t pState;
+                    nvmlPstates_t pStates[NVML_MAX_GPU_PERF_PSTATES];
+                    nvmlReturn_t ret1;
+                    int i = 0;
+
+                    ret = nvml->lib.DeviceGetPerformanceState(device, &pState);
+                    ret1 = nvml->lib.DeviceGetSupportedPerformanceStates(device, pStates, NVML_MAX_GPU_PERF_PSTATES);
+                    if ((ret != NVML_SUCCESS) || (ret1 != NVML_SUCCESS)) {
+                        return NvCtrlNotSupported;
+                    }
+
+                    for (i = 0; i < NVML_MAX_GPU_PERF_PSTATES; i++) {
+                        if (pStates[i] == NVML_PSTATE_UNKNOWN) {
+                            continue;
+                        }
+                        if (pStates[i] == pState) {
+                            res = i;
+                            break;
+                        }
+                    }
+                }
+                break;
+
+            case NV_CTRL_GPU_NVCLOCK_OFFSET:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+            case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+                ret = nvmlClockOffsetHelper(device, nvml, attr, val, NULL, NULL);
+                if (ret == NVML_SUCCESS) {
+                    return NvCtrlSuccess;
+                }
+                break;
+
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
@@ -1678,6 +1808,13 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
                 }
                 break;
 
+            case NV_CTRL_GPU_NVCLOCK_OFFSET:
+            case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+                ret = nvmlClockOffsetHelper(device, nvml, attr, NULL, NULL, &val);
+                break;
+
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_DITHERING:
@@ -1708,6 +1845,9 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
 
     /* An NVML error occurred */
     printNvmlError(ret);
+    if (ret == NVML_ERROR_NO_PERMISSION) {
+        return NvCtrlNoPermission;
+    }
     return NvCtrlNotSupported;
 }
 
@@ -1758,6 +1898,9 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
 
     /* An NVML error occurred */
     printNvmlError(ret);
+    if (ret == NVML_ERROR_NO_PERMISSION) {
+        return NvCtrlNoPermission;
+    }
     return NvCtrlNotSupported;
 }
 
@@ -2040,13 +2183,13 @@ NvCtrlNvmlGetGPUValidStringAttributeValues(int attr,
         case NV_CTRL_STRING_PRODUCT_NAME:
         case NV_CTRL_STRING_VBIOS_VERSION:
         case NV_CTRL_STRING_GPU_UUID:
+        case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
+        case NV_CTRL_STRING_PERFORMANCE_MODES:
             val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING;
             return NvCtrlSuccess;
 
         case NV_CTRL_STRING_SLI_MODE:
-        case NV_CTRL_STRING_PERFORMANCE_MODES:
         case NV_CTRL_STRING_MULTIGPU_MODE:
-        case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
         case NV_CTRL_STRING_GPU_UTILIZATION:
             /*
              * XXX We'll eventually need to add support for this attributes. For
@@ -2190,7 +2333,15 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_ATTR_NVML_GPU_GET_POWER_USAGE:
             case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
             case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
+            case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
+                break;
+
+            case NV_CTRL_GPU_NVCLOCK_OFFSET:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+            case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+            case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+                ret = nvmlClockOffsetHelper(device, nvml, attr, NULL, val, NULL);
                 break;
 
             case NV_CTRL_GPU_ECC_SUPPORTED:
@@ -2220,7 +2371,6 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
@@ -2466,6 +2616,10 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
 {
     /* Set write permissions */
     switch (attr) {
+        case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+        case NV_CTRL_GPU_NVCLOCK_OFFSET:
         case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
         case NV_CTRL_THERMAL_COOLER_LEVEL:
         case NV_CTRL_GPU_ECC_CONFIGURATION:
@@ -2509,7 +2663,14 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS:
         case NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS:
         case NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS:
+        case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
+        case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
+        case NV_CTRL_GPU_NVCLOCK_OFFSET:
         /* CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS */
+            perms->read = NV_TRUE;
+            perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
+            break;
         /* GPU_TARGET non-readable attribute */
         case NV_CTRL_GPU_ECC_RESET_ERROR_STATUS:
             perms->read  = NV_FALSE;
@@ -2551,6 +2712,8 @@ static ReturnStatus NvCtrlNvmlGetStringAttributePerms(int attr,
         case NV_CTRL_STRING_PRODUCT_NAME:
         case NV_CTRL_STRING_VBIOS_VERSION:
         case NV_CTRL_STRING_GPU_UUID:
+        case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
+        case NV_CTRL_STRING_PERFORMANCE_MODES:
             perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
             perms->read = NV_TRUE;
             break;
