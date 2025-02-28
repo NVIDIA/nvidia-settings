@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2024 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2025 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -1293,6 +1293,9 @@ typedef nvmlEccSramErrorStatus_v1_t nvmlEccSramErrorStatus_t;
 
 /**
  * Structure to store platform information
+ *
+ * @deprecated  The nvmlPlatformInfo_v1_t will be deprecated in the subsequent releases.
+ *              Use nvmlPlatformInfo_v2_t
  */
 typedef struct
 {
@@ -1305,9 +1308,22 @@ typedef struct
     unsigned char peerType;                     //!< Platform indicated NVLink-peer type (e.g. switch present or not)
     unsigned char moduleId;                     //!< ID of this GPU within the node
 } nvmlPlatformInfo_v1_t;
-
-typedef nvmlPlatformInfo_v1_t nvmlPlatformInfo_t;
 #define nvmlPlatformInfo_v1 NVML_STRUCT_VERSION(PlatformInfo, 1)
+
+typedef struct
+{
+    unsigned int version;                       //!< the API version number
+    unsigned char ibGuid[16];                   //!< Infiniband GUID reported by platform (for Blackwell, ibGuid is 8 bytes so indices 8-15 are zero)
+    unsigned char chassisSerialNumber[16];      //!< Serial number of the chassis containing this GPU (for Blackwell it is 13 bytes so indices 13-15 are zero)
+    unsigned char slotNumber;                   //!< The slot number in the chassis containing this GPU (includes switches)
+    unsigned char trayIndex;                    //!< The tray index within the compute slots in the chassis containing this GPU (does not include switches)
+    unsigned char hostId;                       //!< Index of the node within the slot containing this GPU
+    unsigned char peerType;                     //!< Platform indicated NVLink-peer type (e.g. switch present or not)
+    unsigned char moduleId;                     //!< ID of this GPU within the node
+} nvmlPlatformInfo_v2_t;
+
+typedef nvmlPlatformInfo_v2_t nvmlPlatformInfo_t;
+#define nvmlPlatformInfo_v2 NVML_STRUCT_VERSION(PlatformInfo, 2)
 
 /**
  * GSP firmware
@@ -2219,16 +2235,22 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL 160 //!< NVLink data ECC Error Counter total for all Links
 
 #define NVML_FI_DEV_NVLINK_ERROR_DL_REPLAY            161 //!< NVLink Replay Error Counter
+                                                          //!< This is unsupported for Blackwell+.
+                                                          //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
 #define NVML_FI_DEV_NVLINK_ERROR_DL_RECOVERY          162 //!< NVLink Recovery Error Counter
+                                                          //!< This is unsupported for Blackwell+
+                                                          //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
 #define NVML_FI_DEV_NVLINK_ERROR_DL_CRC               163 //!< NVLink CRC Error Counter
+                                                          //!< This is unsupported for Blackwell+
+                                                          //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
 #define NVML_FI_DEV_NVLINK_GET_SPEED                  164 //!< NVLink Speed in MBps
 #define NVML_FI_DEV_NVLINK_GET_STATE                  165 //!< NVLink State - Active,Inactive
 #define NVML_FI_DEV_NVLINK_GET_VERSION                166 //!< NVLink Version
 
 #define NVML_FI_DEV_NVLINK_GET_POWER_STATE            167 //!< NVLink Power state. 0=HIGH_SPEED 1=LOW_SPEED
 #define NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD        168 //!< NVLink length of idle period (units can be found from
-                                                          //   NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS) before
-                                                          //   transitioning links to sleep state
+                                                          //!< NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS) before
+                                                          //!< transitioning links to sleep state
 
 #define NVML_FI_DEV_PCIE_L0_TO_RECOVERY_COUNTER       169 //!< Device PEX error recovery counter
 
@@ -9114,6 +9136,8 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuHeterogeneousMode(nvmlDevice_t device, nvm
  * API would return an appropriate error code upon unsuccessful activation. For example, the heterogeneous mode
  * set will fail with error \ref NVML_ERROR_IN_USE if any vGPU instance is active on the device. The caller of this API
  * is expected to shutdown the vGPU VMs and retry setting the \a mode.
+ * On KVM platform, setting heterogeneous mode is allowed, if no MDEV device is created on the device, else will fail
+ * with same error \ref NVML_ERROR_IN_USE.
  * On successful return, the function updates the vGPU heterogeneous mode with the user provided \a pHeterogeneousMode->mode.
  * \a pHeterogeneousMode->version is the version number of the structure nvmlVgpuHeterogeneousMode_t, the caller should
  * set the correct version number to set the vGPU heterogeneous mode.
@@ -12216,6 +12240,8 @@ typedef nvmlPowerSmoothingState_v1_t  nvmlPowerSmoothingState_t; //!< Current ve
  * The API only sets the active preset profile based on the input profileId,
  * and ignores the other parameters of the structure.
  *
+ * %BLACKWELL_OR_NEWER%
+ *
  * @param device                                The identifier of the target device
  * @param profile                               Reference to \ref nvmlPowerSmoothingProfile_t.
  *                                              Note that only \a profile->profileId is used and
@@ -12233,6 +12259,8 @@ nvmlReturn_t DECLDIR nvmlDevicePowerSmoothingActivatePresetProfile(nvmlDevice_t 
 
 /**
  * Update the value of a specific profile parameter contained within \ref nvmlPowerSmoothingProfile_t
+ *
+ * %BLACKWELL_OR_NEWER%
  *
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_PERCENT_TMP_FLOOR expects a value as a percentage from 00.00-100.00%
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE expects a value in W/s
@@ -12253,6 +12281,9 @@ nvmlReturn_t DECLDIR nvmlDevicePowerSmoothingUpdatePresetProfileParam(nvmlDevice
                                                                       nvmlPowerSmoothingProfile_t *profile);
 /**
  * Enable or disable the Power Smoothing Feature
+ *
+ * %BLACKWELL_OR_NEWER%
+ *
  * See \ref nvmlEnableState_t for details on allowed states
  *
  * @param device                                      The identifier of the target device
