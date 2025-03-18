@@ -2026,7 +2026,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_RETIRED_DBE           30  //!< Number of retired pages because of double bit errors
 #define NVML_FI_DEV_RETIRED_PENDING       31  //!< If any pages are pending retirement. 1=yes. 0=no.
 
-/* NvLink Flit Error Counters */
+/**
+ * NVLink Flit Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L0    32 //!< NVLink flow control CRC  Error Counter for Lane 0
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L1    33 //!< NVLink flow control CRC  Error Counter for Lane 1
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L2    34 //!< NVLink flow control CRC  Error Counter for Lane 2
@@ -2035,7 +2039,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L5    37 //!< NVLink flow control CRC  Error Counter for Lane 5
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL 38 //!< NVLink flow control CRC  Error Counter total for all Lanes
 
-/* NvLink CRC Data Error Counters */
+/**
+ * NVLink CRC Data Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L0    39 //!< NVLink data CRC Error Counter for Lane 0
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L1    40 //!< NVLink data CRC Error Counter for Lane 1
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L2    41 //!< NVLink data CRC Error Counter for Lane 2
@@ -2044,7 +2052,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L5    44 //!< NVLink data CRC Error Counter for Lane 5
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL 45 //!< NvLink data CRC Error Counter total for all Lanes
 
-/* NvLink Replay Error Counters */
+/**
+ * NVLink Replay Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L0      46 //!< NVLink Replay Error Counter for Lane 0
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L1      47 //!< NVLink Replay Error Counter for Lane 1
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L2      48 //!< NVLink Replay Error Counter for Lane 2
@@ -2053,7 +2065,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L5      51 //!< NVLink Replay Error Counter for Lane 5
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL   52 //!< NVLink Replay Error Counter total for all Lanes
 
-/* NvLink Recovery Error Counters */
+/**
+ * NVLink Recovery Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L0    53 //!< NVLink Recovery Error Counter for Lane 0
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L1    54 //!< NVLink Recovery Error Counter for Lane 1
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L2    55 //!< NVLink Recovery Error Counter for Lane 2
@@ -2104,7 +2120,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 /* Energy Counter */
 #define NVML_FI_DEV_TOTAL_ENERGY_CONSUMPTION 83 //!< Total energy consumption for the GPU in mJ since the driver was last reloaded
 
-/* NVLink Speed */
+/**
+ * NVLink Speed
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L0     84  //!< NVLink Speed in MBps for Link 0
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L1     85  //!< NVLink Speed in MBps for Link 1
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L2     86  //!< NVLink Speed in MBps for Link 2
@@ -2121,7 +2141,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_PCIE_REPLAY_COUNTER             94  //!< PCIe replay counter
 #define NVML_FI_DEV_PCIE_REPLAY_ROLLOVER_COUNTER    95  //!< PCIe replay rollover counter
 
-/* NvLink Flit Error Counters */
+/**
+ * NVLink Flit Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L6     96 //!< NVLink flow control CRC  Error Counter for Lane 6
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L7     97 //!< NVLink flow control CRC  Error Counter for Lane 7
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L8     98 //!< NVLink flow control CRC  Error Counter for Lane 8
@@ -2129,7 +2153,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L10   100 //!< NVLink flow control CRC  Error Counter for Lane 10
 #define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L11   101 //!< NVLink flow control CRC  Error Counter for Lane 11
 
-/* NvLink CRC Data Error Counters */
+/**
+ * NVLink CRC Data Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L6    102 //!< NVLink data CRC Error Counter for Lane 6
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L7    103 //!< NVLink data CRC Error Counter for Lane 7
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L8    104 //!< NVLink data CRC Error Counter for Lane 8
@@ -2137,7 +2165,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L10   106 //!< NVLink data CRC Error Counter for Lane 10
 #define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L11   107 //!< NVLink data CRC Error Counter for Lane 11
 
-/* NvLink Replay Error Counters */
+/**
+ * NVLink Replay Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L6      108 //!< NVLink Replay Error Counter for Lane 6
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L7      109 //!< NVLink Replay Error Counter for Lane 7
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L8      110 //!< NVLink Replay Error Counter for Lane 8
@@ -2145,7 +2177,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L10     112 //!< NVLink Replay Error Counter for Lane 10
 #define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L11     113 //!< NVLink Replay Error Counter for Lane 11
 
-/* NvLink Recovery Error Counters */
+/**
+ * NVLink Recovery Error Counters
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L6    114 //!< NVLink Recovery Error Counter for Lane 6
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L7    115 //!< NVLink Recovery Error Counter for Lane 7
 #define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L8    116 //!< NVLink Recovery Error Counter for Lane 8
@@ -2177,7 +2213,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L10    130 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 10
 #define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L11    131 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 11
 
-/* NVLink Speed */
+/**
+ * NVLink Speed
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L6     132  //!< NVLink Speed in MBps for Link 6
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L7     133  //!< NVLink Speed in MBps for Link 7
 #define NVML_FI_DEV_NVLINK_SPEED_MBPS_L8     134  //!< NVLink Speed in MBps for Link 8
@@ -2234,15 +2274,37 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L11   159 //!< NVLink data ECC Error Counter for Link 11
 #define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL 160 //!< NVLink data ECC Error Counter total for all Links
 
+/**
+ * NVLink Error Replay
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_ERROR_DL_REPLAY            161 //!< NVLink Replay Error Counter
                                                           //!< This is unsupported for Blackwell+.
                                                           //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
+/**
+ * NVLink Recovery Error Counter
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_ERROR_DL_RECOVERY          162 //!< NVLink Recovery Error Counter
                                                           //!< This is unsupported for Blackwell+
                                                           //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
+
+/**
+ * NVLink Recovery Error CRC Counter
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_ERROR_DL_CRC               163 //!< NVLink CRC Error Counter
                                                           //!< This is unsupported for Blackwell+
                                                           //!< Please use NVML_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_*
+
+/**
+ * NVLink Speed, State and Version field id 164, 165, and 166
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_GET_SPEED                  164 //!< NVLink Speed in MBps
 #define NVML_FI_DEV_NVLINK_GET_STATE                  165 //!< NVLink State - Active,Inactive
 #define NVML_FI_DEV_NVLINK_GET_VERSION                166 //!< NVLink Version
@@ -2308,6 +2370,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 
 #define NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_MAX              200 //!< Max Nvlink Power Threshold. See NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD
 
+/**
+ * NVLink counter field id 201-225
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_COUNT_XMIT_PACKETS                    201 //!<Total Tx packets on the link in NVLink5
 #define NVML_FI_DEV_NVLINK_COUNT_XMIT_BYTES                      202 //!<Total Tx bytes on the link in NVLink5
 #define NVML_FI_DEV_NVLINK_COUNT_RCV_PACKETS                     203 //!<Total Rx packets on the link in NVLink5
@@ -2329,8 +2396,24 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_NVLINK_COUNT_RAW_BER_LANE1                   217 //!<Deprecated, do not use
 #define NVML_FI_DEV_NVLINK_COUNT_RAW_BER                         218 //!<Deprecated, do not use
 #define NVML_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS                219 //!<Sum of the number of errors in each Nvlink packet
+
+/**
+ * NVLink Effective BER
+ *
+ * Bit [0:7]:  BER Exponent value
+ * Bit [8:11]: BER MANTISSA value
+ * Use macro NVML_NVLINK_ERROR_COUNTER_BER_GET to extract the two fields
+ */
 #define NVML_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER                   220 //!<Effective BER for effective errors
 #define NVML_FI_DEV_NVLINK_COUNT_SYMBOL_ERRORS                   221 //!<Number of errors in rx symbols
+
+/**
+ * NVLink Symbol BER
+ *
+ * Bit [0:7]:  BER Exponent value
+ * Bit [8:11]: BER MANTISSA value
+ * Use macro NVML_NVLINK_ERROR_COUNTER_BER_GET to extract the two fields
+ */
 #define NVML_FI_DEV_NVLINK_COUNT_SYMBOL_BER                      222 //!<BER for symbol errors
 
 #define NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_MIN               223 //!< Min Nvlink Power Threshold. See NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD
@@ -2342,6 +2425,11 @@ typedef enum nvmlDeviceGpuRecoveryAction_s  {
 #define NVML_FI_DEV_PCIE_OUTBOUND_ATOMICS_MASK                   228
 #define NVML_FI_DEV_PCIE_INBOUND_ATOMICS_MASK                    229
 #define NVML_FI_DEV_GET_GPU_RECOVERY_ACTION                      230 //!< GPU Recovery action - None/Reset/Reboot/Drain P2P/Drain and Reset
+/**
+ * NVLink counter field id 235-250
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0                   235 //!< Count of symbol errors that are corrected - bin 0
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1                   236 //!< Count of symbol errors that are corrected - bin 1
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2                   237 //!< Count of symbol errors that are corrected - bin 2
@@ -11064,6 +11152,9 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMigMode(nvmlDevice_t device, unsigned int *cur
  * Get GPU instance profile information
  *
  * Information provided by this API is immutable throughout the lifetime of a MIG mode.
+ *
+ * @note This API can be used to enumerate all MIG profiles supported by NVML in a forward compatible
+ * way by invoking it on \a profile values starting from 0, until the API returns \ref NVML_ERROR_INVALID_ARGUMENT.
  *
  * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.

@@ -275,11 +275,11 @@ static gchar *muldivModeStrings[] = {
 /* Tooltips */
 
 static const char * __add_devices_button_help =
-"The Add Devices button adds to the frame lock group all Quadro Sync devices "
+"The Add Devices button adds to the frame lock group all RTX PRO Sync devices "
 "found on the specified X Server.";
 
 static const char * __remove_devices_button_help =
-"The Remove Devices button allows you to remove Quadro Sync, GPU or display "
+"The Remove Devices button allows you to remove RTX PRO Sync, GPU or display "
 "devices from the frame lock group.  Any device removed from the frame lock "
 "group will no longer be controlled.";
 
@@ -292,14 +292,14 @@ static const char * __expand_all_button_help =
 "list.";
 
 static const char * __house_sync_mode_combo_help =
-"The House Sync Mode drop-down allows you to configure the Quadro Sync device "
+"The House Sync Mode drop-down allows you to configure the RTX PRO Sync device "
 "to use the BNC connector in either input or output mode.  When set to Input, "
-"the server Quadro Sync device will generate the frame lock signal "
+"the server RTX PRO Sync device will generate the frame lock signal "
 "from the incoming house sync signal (if a house sync signal is detected) "
 "instead of using internal timing from the server GPU/display device.  When "
 "set to Output, the server will generate a house sync signal from its "
-"internal timing and output this signal over the BNC connector on the Quadro "
-"Sync device.  Output mode is only available on a Quadro Sync II device.  If "
+"internal timing and output this signal over the BNC connector on the RTX PRO "
+"Sync device.  Output mode is only available on a RTX PRO Sync device.  If "
 "an incoming house sync signal is present on the BNC connector, requesting "
 "Output mode will have no effect.";
 
@@ -307,12 +307,12 @@ static const char * __muldiv_value_help =
 "The Sync Multiply/Divide Value allows you to set the number that the "
 "external house sync signal will be multiplied or divided by before comparing "
 "it to this board's internal sync rate.  For example, this may allow a "
-"Quadro Sync II board to sync displays at 120Hz from a 60Hz house sync input.";
+"RTX PRO Sync board to sync displays at 120Hz from a 60Hz house sync input.";
 
 static const char * __muldiv_mode_combo_help =
 "The Sync Muldiply/Divide Mode allows you to control whether the external "
 "house sync signal will be multiplied or divided by the sync multiply/divide "
-"value before being interpreted by this Quadro Sync device.";
+"value before being interpreted by this RTX PRO Sync device.";
 
 static const char * __sync_interval_scale_help =
 "The Sync Interval allows you to set the number of incoming house sync "
@@ -326,8 +326,8 @@ static const char * __sync_edge_combo_help =
 
 static const char * __video_mode_help =
 "The Video Mode drop-down allows you to select which video mode the server "
-"Quadro Sync device will use to decode the incoming house sync signal.  On "
-"some Quadro Sync devices, this will be auto-detected and will be reported "
+"RTX PRO Sync device will use to decode the incoming house sync signal.  On "
+"some RTX PRO Sync devices, this will be auto-detected and will be reported "
 "as read-only information.";
 
 static const char * __detect_video_mode_button_help =
@@ -342,7 +342,7 @@ static const char * __test_link_button_help =
 
 static const char * __sync_enable_button_help =
 "The Enable/Disable Frame Lock button will enable/disable frame lock on all "
-"devices listed in the Quadro Sync group.  Enabling frame lock will lock the "
+"devices listed in the RTX PRO Sync group.  Enabling frame lock will lock the "
 "refresh rates of all members in the frame lock group.";
 
 static const char * __server_checkbox_help =
@@ -980,7 +980,7 @@ static gchar *get_gpu_name(nvGPUDataPtr data, gboolean simple)
 
 /** get_framelock_name() *********************************************
  *
- * Returns the name of the given frame lock (Quadro Sync) device.
+ * Returns the name of the given frame lock (RTX PRO Sync) device.
  *
  */
 static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
@@ -1047,7 +1047,7 @@ static void update_entry_label(CtkFramelock *ctk_framelock,
     switch (entry->data_type) {
     case ENTRY_DATA_FRAMELOCK:
         label_set_text(((nvFrameLockDataPtr)(entry->data))->label,
-                       str?str:"Unknown Quadro Sync");
+                       str?str:"Unknown RTX PRO Sync");
         break;
     case ENTRY_DATA_GPU:
         label_set_text(((nvGPUDataPtr)(entry->data))->label,
@@ -1228,7 +1228,7 @@ static nvDisplayDataPtr get_display_server_data(nvListTreePtr tree)
 
 /** list_entry_update_framelock_controls() ***************************
  *
- * Updates a Quadro Sync list entry's GUI controls based on the current
+ * Updates a RTX PRO Sync list entry's GUI controls based on the current
  * frame lock status.
  *
  */
@@ -1486,7 +1486,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
     tree = (nvListTreePtr)(ctk_framelock->tree);
     framelock_enabled = ctk_framelock->framelock_enabled;
 
-    /* Quadro Sync Buttons */
+    /* RTX PRO Sync Buttons */
     gtk_widget_set_sensitive(ctk_framelock->remove_devices_button,
                              tree->selected_entry != NULL);
 
@@ -1533,7 +1533,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
     gtk_widget_set_sensitive(ctk_framelock->test_link_button,
                              (framelock_enabled && tree->server_entry));
 
-    /* Update the frame lock Quadro Sync frame */
+    /* Update the frame lock RTX PRO Sync frame */
     list_entry_update_controls(ctk_framelock, tree->entries);
 
     /* House Sync */
@@ -3822,10 +3822,10 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
     /* Update the Timing LED:
      *
      * We should disable the GPU Timing LED (which reports the sync status
-     * between the GPU and the Quadro Sync device) when we don't care if the
-     * GPU is in sync with the Quadro Sync device.  This occurs when Frame Lock
+     * between the GPU and the RTX PRO Sync device) when we don't care if the
+     * GPU is in sync with the RTX PRO Sync device.  This occurs when Frame Lock
      * is disabled, or when there are no devices selected for the GPU, or
-     * in cases where the GPU is driving the sync signal to the Quadro Sync
+     * in cases where the GPU is driving the sync signal to the RTX PRO Sync
      * device.
      */
     if (!framelock_enabled ||                    // Frame Lock is disabled.
@@ -3980,7 +3980,7 @@ static gboolean update_framelock_status(gpointer user_data)
  * Queries Ethernet status for all frame lock devices and reports
  * on any error.
  *
- * XXX This assumes that the frame lock (Quadro Sync) devices are
+ * XXX This assumes that the frame lock (RTX PRO Sync) devices are
  *     top-level list entries, such that they are all siblings.
  *
  */
@@ -4942,7 +4942,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
             banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
             gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
 
-            string = "The firmware on this Quadro Sync "
+            string = "The firmware on this RTX PRO Sync "
                 "card \n is not compatible with the GPUs connected to it.\n\n"
                 "Please visit "
                 "<http://www.nvidia.com/object/quadro-sync.html>\n "
@@ -5194,10 +5194,10 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
     gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
 
-    /* Quadro Sync Frame */
+    /* RTX PRO Sync Frame */
     
     frame = gtk_frame_new(NULL);
-    gtk_frame_set_label(GTK_FRAME(frame), "Quadro Sync Devices");
+    gtk_frame_set_label(GTK_FRAME(frame), "RTX PRO Sync Devices");
     gtk_box_pack_start(GTK_BOX(ctk_framelock), frame, TRUE, TRUE, 0);
 
     /* scrollable window */
@@ -6025,7 +6025,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         update_entry_label(ctk_framelock, entry);
         list_entry_update_status(ctk_framelock, entry);
 
-        /* Add GPUs tied to this Quadro Sync */
+        /* Add GPUs tied to this RTX PRO Sync */
         add_gpu_devices(ctk_framelock, entry);
         if (entry->children) {
             int i;
@@ -6433,16 +6433,16 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "manage an entire cluster of workstations in a frame lock "
                   "group.");
 
-    /* Quadro Sync Frame Help */
+    /* RTX PRO Sync Frame Help */
 
-    ctk_help_heading(b, &i, "Quadro Sync Section");
-    ctk_help_para(b, &i, "The Quadro Sync section allows you to configure the "
+    ctk_help_heading(b, &i, "RTX PRO Sync Section");
+    ctk_help_para(b, &i, "The RTX PRO Sync section allows you to configure the "
                   "individual devices that make up the frame lock group.");
 
-    ctk_help_heading(b, &i, "Quadro Sync Device Entry Information");
-    ctk_help_para(b, &i, "Quadro Sync (frame lock board) device entries "
+    ctk_help_heading(b, &i, "RTX PRO Sync Device Entry Information");
+    ctk_help_para(b, &i, "RTX PRO Sync (frame lock board) device entries "
                   "display the following information:");
-    ctk_help_para(b, &i, "The X server name and Quadro Sync board ID.");
+    ctk_help_para(b, &i, "The X server name and RTX PRO Sync board ID.");
     ctk_help_para(b, &i, "Receiving LED: This indicates whether the frame "
                   "lock board is receiving a sync pulse.  Green means a "
                   "signal is detected; red means a signal is not detected.  "
@@ -6466,11 +6466,11 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "GPU Device Entry Information");
     ctk_help_para(b, &i, "GPU Device entries display the GPU name and number "
-                  "of a GPU connected to a Quadro Sync device.  Display "
+                  "of a GPU connected to a RTX PRO Sync device.  Display "
                   "devices driven by the GPU will be listed under this entry.");
     ctk_help_para(b, &i, "Timing LED: This indicates that the GPU "
                   "is synchronized with the incoming timing signal from the "
-                  "Quadro Sync device");
+                  "RTX PRO Sync device");
 
     ctk_help_heading(b, &i, "Display Device Entry Information");
     ctk_help_para(b, &i, "Display Device entries display information and "
@@ -6482,7 +6482,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "%s", __client_checkbox_help);
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
                   "display device is synced to the stereo signal coming from "
-                  "the Quadro Sync device.  This LED is only available to "
+                  "the RTX PRO Sync device.  This LED is only available to "
                   "display devices set as clients when frame lock is enabled.  "
                   "The Stereo LED is dependent on the parent GPU being in sync "
                   "with the input timing signal.");
@@ -6500,9 +6500,9 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "House Sync Section");
     ctk_help_para(b, &i, "The House Sync section allows you to configure "
-                  "the selected server Quadro Sync board for using an incoming "
+                  "the selected server RTX PRO Sync board for using an incoming "
                   "house sync signal instead of internal GPU timings.  On "
-                  "Quadro Sync II boards, you can configure the board to "
+                  "RTX PRO Sync boards, you can configure the board to "
                   "generate an outgoing house sync signal from the internal "
                   "GPU timings.  This section is only accessible by selecting "
                   "a server display device (See Display Device Information "
@@ -6511,7 +6511,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_heading(b, &i, "Use House Sync on Server");
     ctk_help_para(b, &i, "%s", __house_sync_mode_combo_help);
     ctk_help_para(b, &i, "If this option is set to Input and no house signal "
-                  "is detected (House LED is red), the Quadro Sync device "
+                  "is detected (House LED is red), the RTX PRO Sync device "
                   "will fall back to using internal timings from the primary "
                   "GPU.");
 

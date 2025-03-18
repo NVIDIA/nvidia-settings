@@ -416,7 +416,7 @@
  * NV_CTRL_FRAMELOCK_POLARITY - sync either to the rising edge of the
  * frame lock pulse, the falling edge of the frame lock pulse or both.
  *
- * On Quadro Sync II, this attribute is ignored when
+ * On RTX PRO Sync, this attribute is ignored when
  * NV_CTRL_USE_HOUSE_SYNC is OUTPUT.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
@@ -443,7 +443,7 @@
  * USAGE NOTE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR are deprecated.
  *             The Sync Delay _MAX and _FACTOR are different for different
- *             Quadro Sync products and so, to be correct, the valid values for
+ *             RTX PRO Sync products and so, to be correct, the valid values for
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY must be queried to get the range
  *             of acceptable sync delay values, and 
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION must be queried to
@@ -1447,7 +1447,7 @@
  *
  * When set to OUTPUT, the server frame lock device will generate a house sync
  * signal from its internal timing and output this signal over the BNC connector
- * on the frame lock device.  This is only allowed on a Quadro Sync II device.
+ * on the frame lock device.  This is only allowed on a RTX PRO Sync device.
  * If an incoming house sync signal is present on the BNC connector, this
  * setting will have no effect.
  *
@@ -3141,7 +3141,7 @@
  *
  * Note that whether or not a display device may be set as a client/server
  * depends on the current configuration.  For example, only one server may be
- * set per Quadro Sync device, and displays can only be configured as a client
+ * set per RTX PRO Sync device, and displays can only be configured as a client
  * if their refresh rate sufficiently matches the refresh rate of the server
  * device.
  *
@@ -3448,7 +3448,7 @@
 
 /*
  * NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED - Returns true if the
- * Quadro Sync card connected to this GPU has a firmware version incompatible
+ * RTX PRO Sync card connected to this GPU has a firmware version incompatible
  * with this GPU.
  */
 
