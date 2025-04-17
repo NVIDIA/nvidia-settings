@@ -415,7 +415,7 @@ For example:
 
         nvidia\-settings \-\-query FSAA
         nvidia\-settings \-\-query 0/FSAA
-        nvidia\-settings \-\-query stravinsky.nvidia.com:0/FSAA
+        nvidia\-settings \-\-query alpha.example.org:0/FSAA
 
 .fi
 In the first two cases, the default X Display will be used, in the second case, the screen from the default X Display can be overridden, and in the third case, the entire default X Display can be overridden.
@@ -446,11 +446,11 @@ is an X client, but uses two separate X connections: one to display the GUI, and
 These two X connections do not need to be to the same X server.
 For example, you might run
 .B nvidia\-settings
-on the computer stravinsky.nvidia.com, export the display to the computer bartok.nvidia.com, but be configuring the X server on the computer schoenberg.nvidia.com:
+on the computer alpha.example.org, export the display to the computer beta.example.org, but be configuring the X server on the computer gamma.example.org:
 .nf
 
-        nvidia\-settings \-\-display=bartok.nvidia.com:0 \\
-            \-\-ctrl\-display=schoenberg.nvidia.com:0
+        nvidia\-settings \-\-display=beta.example.org:0 \\
+            \-\-ctrl\-display=gamma.example.org:0
 
 .fi
 If
@@ -466,20 +466,20 @@ environment variable is used.
 .PP
 Note, however, that you will need to have X permissions configured such that you can establish an X connection from the computer on which you are running
 .B nvidia\-settings
-(stravinsky.nvidia.com) to the computer where you are displaying the GUI (bartok.nvidia.com) and the computer whose X Display you are configuring (schoenberg.nvidia.com).
+(alpha.example.org) to the computer where you are displaying the GUI (beta.example.org) and the computer whose X Display you are configuring (gamma.example.org).
 .PP
 The simplest, most common, and least secure mechanism to do this is to use 'xhost' to allow access from the computer on which you are running
 .B nvidia\-settings.
 .nf
 
-        (issued from bartok.nvidia.com)
-        xhost +stravinsky.nvidia.com
+        (issued from beta.example.org)
+        xhost +alpha.example.org
 
-        (issued from schoenberg.nvidia.com)
-        xhost +stravinsky.nvidia.com
+        (issued from gamma.example.org)
+        xhost +alpha.example.org
 
 .fi
-This will allow all X clients run on stravinsky.nvidia.com to connect and display on bartok.nvidia.com's X server and configure schoenberg.nvidia.com's X server.
+This will allow all X clients run on alpha.example.org to connect and display on beta.example.org's X server and configure gamma.example.org's X server.
 .PP
 Please see the
 .BR xauth (1)

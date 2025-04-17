@@ -290,6 +290,7 @@ const AttributeTableEntry attributeTable[] = {
     { "DisplayVRRMinRefreshRate",         NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE,         INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The minimum refresh rate for the specified VRR display device." },
     { "DisplayVRREnabled",                NV_CTRL_DISPLAY_VRR_ENABLED,                  INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), then VRR was enabled on this display at modeset time." },
     { "NumberOfHardwareHeadsUsed",        NV_CTRL_NUMBER_OF_HARDWARE_HEADS_USED,        INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of hardware heads currently used by this display device." },
+    { "FlatpanelSignal",                  NV_CTRL_FLATPANEL_SIGNAL,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Report whether the flat panel is driven by an LVDS, TMDS, DisplayPort, or HDMI FRL (fixed-rate link) signal." },
 
     /* TV */
     { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },

@@ -276,6 +276,9 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, DeviceGetPerformanceState);
     GET_SYMBOL(_OPTIONAL, DeviceGetSupportedPerformanceStates);
     GET_SYMBOL(_OPTIONAL, DeviceGetArchitecture);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPcieLinkMaxSpeed);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPcieSpeed);
+    GET_SYMBOL(_OPTIONAL, DeviceGetAdaptiveClockInfoStatus);
 #undef GET_SYMBOL
 #undef EXPAND_STRING
 #undef STRINGIFY_SYMBOL
@@ -907,6 +910,34 @@ static nvmlReturn_t nvmlClockOffsetHelper(nvmlDevice_t device,
     return NVML_SUCCESS;
 }
 
+static nvmlReturn_t
+convertNvmlPcieSpeedToNvctrlPcieSpeed(unsigned int nvmlPcieSpeed, unsigned int *pcieSpeed)
+{
+    switch (nvmlPcieSpeed) {
+        case NVML_PCIE_LINK_MAX_SPEED_2500MBPS:
+            *pcieSpeed = 2500;
+            break;
+        case NVML_PCIE_LINK_MAX_SPEED_5000MBPS:
+            *pcieSpeed = 5000;
+            break;
+        case NVML_PCIE_LINK_MAX_SPEED_8000MBPS:
+            *pcieSpeed = 8000;
+            break;
+        case NVML_PCIE_LINK_MAX_SPEED_16000MBPS:
+            *pcieSpeed = 16000;
+            break;
+        case NVML_PCIE_LINK_MAX_SPEED_32000MBPS:
+            *pcieSpeed = 32000;
+            break;
+        case NVML_PCIE_LINK_MAX_SPEED_64000MBPS:
+            *pcieSpeed = 64000;
+            break;
+        default:
+            return NVML_ERROR_UNKNOWN;
+    }
+    return NVML_SUCCESS;
+}
+
 /*
  * Get NVML Attribute Values
  */
@@ -1200,11 +1231,54 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 }
                 break;
 
-            case NV_CTRL_VIDEO_RAM:
-            case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
-            case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
-            case NV_CTRL_BUS_TYPE:
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
+                ret = nvml->lib.DeviceGetAdaptiveClockInfoStatus(device, &res);
+                break;
+
+            case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
+                {
+                    unsigned int nvmlPcieSpeed;
+                    ret = nvml->lib.DeviceGetPcieLinkMaxSpeed(device, &nvmlPcieSpeed);
+                    if (ret == NVML_SUCCESS) {
+                        ret = convertNvmlPcieSpeedToNvctrlPcieSpeed(nvmlPcieSpeed, &res);
+                    }
+                }
+                break;
+
+            case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
+                ret = nvml->lib.DeviceGetPcieSpeed(device, &res);
+                break;
+
+            case NV_CTRL_OPERATING_SYSTEM:
+#if defined(NV_LINUX)
+                res = NV_CTRL_OPERATING_SYSTEM_LINUX;
+#elif defined(NV_BSD)
+                res = NV_CTRL_OPERATING_SYSTEM_FREEBSD;
+#elif defined(NV_SUNOS)
+                res = NV_CTRL_OPERATING_SYSTEM_SUNOS;
+#else
+                return NvCtrlNotSupported;
+#endif
+                break;
+
+            case NV_CTRL_ARCHITECTURE:
+#if defined(NVCPU_X86)
+                res = NV_CTRL_ARCHITECTURE_X86;
+#elif defined(NVCPU_X86_64)
+                res = NV_CTRL_ARCHITECTURE_X86_64;
+#elif defined(NVCPU_ARM)
+                res = NV_CTRL_ARCHITECTURE_ARM;
+#elif defined(NVCPU_AARCH64)
+                res = NV_CTRL_ARCHITECTURE_AARCH64;
+#elif defined(NVCPU_PPC64LE)
+                res = NV_CTRL_ARCHITECTURE_PPC64LE;
+#else
+                return NvCtrlNotSupported;
+#endif
+                break;
+
+            case NV_CTRL_VIDEO_RAM:
+            case NV_CTRL_BUS_TYPE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
             case NV_CTRL_ENABLED_DISPLAYS:
@@ -1219,7 +1293,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_XINERAMA:
             case NV_CTRL_ATTR_NV_MAJOR_VERSION:
             case NV_CTRL_ATTR_NV_MINOR_VERSION:
-            case NV_CTRL_OPERATING_SYSTEM:
             case NV_CTRL_NO_SCANOUT:
             case NV_CTRL_AMBIENT_TEMPERATURE:
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
@@ -2334,6 +2407,10 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
             case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
             case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
+            case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
+            case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
+            case NV_CTRL_OPERATING_SYSTEM:
+            case NV_CTRL_ARCHITECTURE:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
                 break;
 
@@ -2349,6 +2426,8 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_GPU_ECC_CONFIGURATION:
             case NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED:
             case NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION:
+            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
+            case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BOOL;
                 break;
 
@@ -2363,15 +2442,8 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BITMASK;
                 break;
 
-            case NV_CTRL_GPU_COOLER_MANUAL_CONTROL:
-                val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BOOL;
-                break;
-
             case NV_CTRL_VIDEO_RAM:
-            case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
-            case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
             case NV_CTRL_ENABLED_DISPLAYS:
@@ -2386,7 +2458,6 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_XINERAMA:
             case NV_CTRL_ATTR_NV_MAJOR_VERSION:
             case NV_CTRL_ATTR_NV_MINOR_VERSION:
-            case NV_CTRL_OPERATING_SYSTEM:
             case NV_CTRL_NO_SCANOUT:
             case NV_CTRL_AMBIENT_TEMPERATURE:
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:

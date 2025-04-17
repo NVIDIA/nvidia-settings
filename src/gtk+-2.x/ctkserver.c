@@ -329,37 +329,34 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
         xinerama_enabled = FALSE;
     }
 
-    if (ctrl_target->system->has_nv_control) {
+    /* NV_CTRL_OPERATING_SYSTEM */
 
-        /* NV_CTRL_OPERATING_SYSTEM */
-
-        os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OPERATING_SYSTEM, &os_val);
-        os = NULL;
-        if (ret == NvCtrlSuccess) {
-            if      (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
-            else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
-            else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) os = "SunOS";
-        }
-        if (!os) os = "Unknown";
-
-        /* NV_CTRL_ARCHITECTURE */
-
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
-        arch = NULL;
-        if (ret == NvCtrlSuccess) {
-            switch (tmp) {
-                case NV_CTRL_ARCHITECTURE_X86: arch = "x86"; break;
-                case NV_CTRL_ARCHITECTURE_X86_64: arch = "x86_64"; break;
-                case NV_CTRL_ARCHITECTURE_IA64: arch = "ia64"; break;
-                case NV_CTRL_ARCHITECTURE_ARM: arch = "ARM"; break;
-                case NV_CTRL_ARCHITECTURE_AARCH64: arch = "AArch64"; break;
-                case NV_CTRL_ARCHITECTURE_PPC64LE: arch = "ppc64le"; break;
-            }
-        }
-        if (!arch) arch = "Unknown";
-        os = g_strdup_printf("%s-%s", os, arch);
+    os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OPERATING_SYSTEM, &os_val);
+    os = NULL;
+    if (ret == NvCtrlSuccess) {
+        if      (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
+        else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
+        else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) os = "SunOS";
     }
+    if (!os) os = "Unknown";
+
+    /* NV_CTRL_ARCHITECTURE */
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
+    arch = NULL;
+    if (ret == NvCtrlSuccess) {
+        switch (tmp) {
+            case NV_CTRL_ARCHITECTURE_X86: arch = "x86"; break;
+            case NV_CTRL_ARCHITECTURE_X86_64: arch = "x86_64"; break;
+            case NV_CTRL_ARCHITECTURE_IA64: arch = "ia64"; break;
+            case NV_CTRL_ARCHITECTURE_ARM: arch = "ARM"; break;
+            case NV_CTRL_ARCHITECTURE_AARCH64: arch = "AArch64"; break;
+            case NV_CTRL_ARCHITECTURE_PPC64LE: arch = "ppc64le"; break;
+        }
+    }
+    if (!arch) arch = "Unknown";
+    os = g_strdup_printf("%s-%s", os, arch);
 
     /* NV_CTRL_STRING_NVIDIA_DRIVER_VERSION */
 

@@ -217,6 +217,9 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetCurrentClockFreqs)               (*DeviceGetCurrentClockFreqs);
         typeof(nvmlDeviceGetPerformanceState)                (*DeviceGetPerformanceState);
         typeof(nvmlDeviceGetArchitecture)                    (*DeviceGetArchitecture);
+        typeof(nvmlDeviceGetPcieLinkMaxSpeed)                (*DeviceGetPcieLinkMaxSpeed);
+        typeof(nvmlDeviceGetPcieSpeed)                       (*DeviceGetPcieSpeed);
+        typeof(nvmlDeviceGetAdaptiveClockInfoStatus)         (*DeviceGetAdaptiveClockInfoStatus);
     } lib;
 
     unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */
