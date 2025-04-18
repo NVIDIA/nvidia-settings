@@ -11395,6 +11395,9 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetInfo(nvmlGpuInstance_t gpuInstance, nvmlG
  *
  * Information provided by this API is immutable throughout the lifetime of a MIG mode.
  *
+ * @note This API can be used to enumerate all MIG profiles supported by NVML in a forward compatible
+ * way by invoking it on \a profile values starting from 0, until the API returns \ref NVML_ERROR_INVALID_ARGUMENT.
+ *
  * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
