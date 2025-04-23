@@ -297,6 +297,29 @@ void nvfree(void *s)
 /****************************************************************************/
 
 /*
+ * get_user_home() - locate current user's home directory using either
+ * the enrivonment variable or their passwd entry.
+ *
+ * Returns NULL if the home directory cannot be located, otherwise
+ * returns a statically allocated string that is either the value
+ * of the environment variable or the passwd entry.
+ */
+const char *get_user_home()
+{
+    char *home = getenv("HOME");
+    struct passwd *pw;
+
+    if (home) return home;
+
+    /* $HOME isn't set; get the home directory from /etc/passwd */
+
+    pw = getpwuid(getuid());
+    if (pw) return pw->pw_dir;
+
+    return NULL;
+}
+
+/*
  * tilde_expansion() - do tilde expansion on the given path name;
  * based loosely on code snippets found in the comp.unix.programmer
  * FAQ.  The tilde expansion rule is: if a tilde ('~') is alone or
@@ -310,7 +333,7 @@ void nvfree(void *s)
 
 char *tilde_expansion(const char *str)
 {
-    char *prefix = NULL;
+    const char *prefix = NULL;
     const char *replace;
     char *user, *ret;
     struct passwd *pw;
@@ -324,14 +347,7 @@ char *tilde_expansion(const char *str)
 
         /* expand to the current user's home directory */
 
-        prefix = getenv("HOME");
-        if (!prefix) {
-
-            /* $HOME isn't set; get the home directory from /etc/passwd */
-
-            pw = getpwuid(getuid());
-            if (pw) prefix = pw->pw_dir;
-        }
+        prefix = get_user_home();
 
         replace = str + 1;
 
