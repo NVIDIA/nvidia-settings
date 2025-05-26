@@ -1042,6 +1042,7 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
 
     /* sensor target type */
     if (target) {
+        ctk_thermal->any_sensor_target_supported = TRUE;
         add_table_row_with_help_text(table, ctk_thermal->ctk_config,
                                 __thermal_sensor_target_help,
                                 0, 0, 0, 0.5,
@@ -1054,6 +1055,7 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
 
     /* sensor provider type */
     if (provider) {
+        ctk_thermal->any_sensor_provider_supported = TRUE;
         add_table_row_with_help_text(table, ctk_thermal->ctk_config,
                                 __thermal_sensor_provider_help,
                                 1, 0, 0, 0.5,
@@ -1066,6 +1068,7 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
     
     /* Upper limit, slowdown threshold */
     if (slowdown > 0) {
+        ctk_thermal->any_sensor_slowdown_supported = TRUE;
         s = g_strdup_printf("%d\xc2\xb0" /* split for g_utf8_validate() */ "C",
                              slowdown);
         add_table_row_with_help_text(table, ctk_thermal->ctk_config,
@@ -1079,6 +1082,7 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
 
     /* thermal sensor reading */
     if (reading) {
+        ctk_thermal->any_sensor_reading_supported = TRUE;
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 3, 4,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1186,7 +1190,8 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
                              &nvml_version);
 
     /* NVML version is of form <Max CUDA Supported> DOT <MAJOR> DOT <MINOR> */
-    if ((sscanf(nvml_version, "%d.%d.%d", &cuda, &nvmlMajor, &nvmlMinor) == 3) &&
+    if (nvml_version &&
+        (sscanf(nvml_version, "%d.%d.%d", &cuda, &nvmlMajor, &nvmlMinor) == 3) &&
         (nvmlMajor >= 565)) {
         thermal_sensor_target_type_supported = TRUE;
     }
@@ -1724,14 +1729,25 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "ID");
         ctk_help_para(b, &i, "%s", __thermal_sensor_id_help);
 
-        ctk_help_heading(b, &i, "Temperature");
-        ctk_help_para(b, &i, "%s", __thermal_sensor_reading_help);
+        if (ctk_thermal->any_sensor_target_supported) {
+            ctk_help_heading(b, &i, "Target");
+            ctk_help_para(b, &i, "%s", __thermal_sensor_target_help);
+        }
 
-        ctk_help_heading(b, &i, "Target");
-        ctk_help_para(b, &i, "%s", __thermal_sensor_target_help);
-        
-        ctk_help_heading(b, &i, "Provider");
-        ctk_help_para(b, &i, "%s", __thermal_sensor_provider_help);
+        if (ctk_thermal->any_sensor_provider_supported) {
+            ctk_help_heading(b, &i, "Provider");
+            ctk_help_para(b, &i, "%s", __thermal_sensor_provider_help);
+        }
+
+        if (ctk_thermal->any_sensor_slowdown_supported) {
+            ctk_help_heading(b, &i, "Slowdown Temp");
+            ctk_help_para(b, &i, "%s", __slowdown_threshold_help);
+        }
+
+        if (ctk_thermal->any_sensor_reading_supported) {
+            ctk_help_heading(b, &i, "Temperature");
+            ctk_help_para(b, &i, "%s", __thermal_sensor_reading_help);
+        }
 
         any_sensor = TRUE;
     }

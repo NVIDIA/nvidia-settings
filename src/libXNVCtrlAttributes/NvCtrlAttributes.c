@@ -1341,6 +1341,8 @@ char *NvCtrlAttributesStrError(ReturnStatus status)
           return "Attribute not available"; break;
       case NvCtrlNotSupported:
           return "Operation not supported"; break;
+      case NvCtrlNoPermission:
+          return "Operation not permitted for the current user"; break;
       case NvCtrlError: /* fall through to default */
       default:
         return "Unknown Error"; break;

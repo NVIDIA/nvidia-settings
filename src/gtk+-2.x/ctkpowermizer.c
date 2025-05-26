@@ -1009,9 +1009,8 @@ static gboolean update_powermizer_info(gpointer user_data)
         g_free(s);
     }
 
-    /* Show TGP as N/A when power source is battery or undersized. */
-    if ((power_source == NV_CTRL_GPU_POWER_SOURCE_BATTERY) ||
-        (power_source == NVML_POWER_SOURCE_UNDERSIZED)) {
+    /* Show TGP as N/A when power source is undersized. */
+    if ((power_source == NVML_POWER_SOURCE_UNDERSIZED)) {
         s = g_strdup_printf("N/A");
         if (ctk_powermizer->default_tgp) {
             gtk_label_set_text(GTK_LABEL(ctk_powermizer->default_tgp), s);
@@ -1020,7 +1019,8 @@ static gboolean update_powermizer_info(gpointer user_data)
             gtk_label_set_text(GTK_LABEL(ctk_powermizer->max_tgp), s);
         }
         g_free(s);
-    } else if (power_source == NV_CTRL_GPU_POWER_SOURCE_AC) {
+    } else if ((power_source == NV_CTRL_GPU_POWER_SOURCE_AC) ||
+               (power_source == NV_CTRL_GPU_POWER_SOURCE_BATTERY)) {
         if (ctk_powermizer->default_tgp) {
             s = g_strdup_printf("%.2f W",
                                 ctk_powermizer->default_tgp_value / 1000.0f);
