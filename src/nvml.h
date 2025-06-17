@@ -10866,13 +10866,31 @@ nvmlReturn_t DECLDIR nvmlGetExcludedDeviceInfoByIndex(unsigned int index, nvmlEx
 #define NVML_GPU_INSTANCE_PROFILE_7_SLICE      0x4
 #define NVML_GPU_INSTANCE_PROFILE_8_SLICE      0x5
 #define NVML_GPU_INSTANCE_PROFILE_6_SLICE      0x6
+// 1_SLICE profile with at least one (if supported at all) of Decoder, Encoder, JPEG, OFA engines.
 #define NVML_GPU_INSTANCE_PROFILE_1_SLICE_REV1 0x7
+// 2_SLICE profile with at least one (if supported at all) of Decoder, Encoder, JPEG, OFA engines.
 #define NVML_GPU_INSTANCE_PROFILE_2_SLICE_REV1 0x8
+// 1_SLICE profile with twice the amount of memory resources.
 #define NVML_GPU_INSTANCE_PROFILE_1_SLICE_REV2 0x9
-#define NVML_GPU_INSTANCE_PROFILE_1_SLICE_GFX  0xA
-#define NVML_GPU_INSTANCE_PROFILE_2_SLICE_GFX  0xB
-#define NVML_GPU_INSTANCE_PROFILE_4_SLICE_GFX  0xC
-#define NVML_GPU_INSTANCE_PROFILE_COUNT        0xD
+// 1_SLICE gfx capable profile
+#define NVML_GPU_INSTANCE_PROFILE_1_SLICE_GFX      0x0A
+// 2_SLICE gfx capable profile
+#define NVML_GPU_INSTANCE_PROFILE_2_SLICE_GFX      0x0B
+// 4_SLICE gfx capable profile
+#define NVML_GPU_INSTANCE_PROFILE_4_SLICE_GFX      0x0C
+// 1_SLICE profile with none of Decode, Encoder, JPEG, OFA engines.
+#define NVML_GPU_INSTANCE_PROFILE_1_SLICE_NO_ME    0x0D
+// 2_SLICE profile with none of Decode, Encoder, JPEG, OFA engines.
+#define NVML_GPU_INSTANCE_PROFILE_2_SLICE_NO_ME    0x0E
+// 1_SLICE profile with all of GPU Decode, Encoder, JPEG, OFA engines.
+// Allocation of instance of this profile prevents allocation of
+// all but _NO_ME profiles.
+#define NVML_GPU_INSTANCE_PROFILE_1_SLICE_ALL_ME   0x0F
+// 2_SLICE profile with all of GPU Decode, Encoder, JPEG, OFA engines.
+// Allocation of instance of this profile prevents allocation of
+// all but _NO_ME profiles.
+#define NVML_GPU_INSTANCE_PROFILE_2_SLICE_ALL_ME   0x10
+#define NVML_GPU_INSTANCE_PROFILE_COUNT            0x11
 
 /**
  * MIG GPU instance profile capability.

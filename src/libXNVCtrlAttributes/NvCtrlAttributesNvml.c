@@ -1200,6 +1200,35 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 }
                 break;
 
+
+            case NV_CTRL_OPERATING_SYSTEM:
+#if defined(NV_LINUX)
+                res = NV_CTRL_OPERATING_SYSTEM_LINUX;
+#elif defined(NV_BSD)
+                res = NV_CTRL_OPERATING_SYSTEM_FREEBSD;
+#elif defined(NV_SUNOS)
+                res = NV_CTRL_OPERATING_SYSTEM_SUNOS;
+#else
+                return NvCtrlNotSupported;
+#endif
+                break;
+
+            case NV_CTRL_ARCHITECTURE:
+#if defined(NVCPU_X86)
+                res = NV_CTRL_ARCHITECTURE_X86;
+#elif defined(NVCPU_X86_64)
+                res = NV_CTRL_ARCHITECTURE_X86_64;
+#elif defined(NVCPU_ARM)
+                res = NV_CTRL_ARCHITECTURE_ARM;
+#elif defined(NVCPU_AARCH64)
+                res = NV_CTRL_ARCHITECTURE_AARCH64;
+#elif defined(NVCPU_PPC64LE)
+                res = NV_CTRL_ARCHITECTURE_PPC64LE;
+#else
+                return NvCtrlNotSupported;
+#endif
+                break;
+
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED:
@@ -1219,7 +1248,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_XINERAMA:
             case NV_CTRL_ATTR_NV_MAJOR_VERSION:
             case NV_CTRL_ATTR_NV_MINOR_VERSION:
-            case NV_CTRL_OPERATING_SYSTEM:
             case NV_CTRL_NO_SCANOUT:
             case NV_CTRL_AMBIENT_TEMPERATURE:
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
@@ -2334,6 +2362,8 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_ATTR_NVML_GPU_MAX_TGP:
             case NV_CTRL_ATTR_NVML_GPU_DEFAULT_TGP:
             case NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL:
+            case NV_CTRL_OPERATING_SYSTEM:
+            case NV_CTRL_ARCHITECTURE:
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
                 break;
 
@@ -2386,7 +2416,6 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_XINERAMA:
             case NV_CTRL_ATTR_NV_MAJOR_VERSION:
             case NV_CTRL_ATTR_NV_MINOR_VERSION:
-            case NV_CTRL_OPERATING_SYSTEM:
             case NV_CTRL_NO_SCANOUT:
             case NV_CTRL_AMBIENT_TEMPERATURE:
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
