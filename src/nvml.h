@@ -7496,7 +7496,41 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSramEccErrorStatus(nvmlDevice_t device,
                                                      nvmlEccSramErrorStatus_t *status);
 
 /**
- * @}
+ * Set new power limit of this device.
+ *
+ * For Kepler &tm; or newer fully supported devices.
+ * Requires root/admin permissions.
+ *
+ * See \ref nvmlDeviceGetPowerManagementLimitConstraints to check the allowed ranges of values.
+ *
+ * See \ref nvmlPowerValue_v2_t for more information on the struct.
+ *
+ * \note Limit is not persistent across reboots or driver unloads.
+ * Enable persistent mode to prevent driver from unloading when no application is using the device.
+ *
+ * This API replaces nvmlDeviceSetPowerManagementLimit. It can be used as a drop-in replacement for the older version.
+ *
+ * @param device                               The identifier of the target device
+ * @param powerValue                           Power management limit in milliwatts to set
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a limit has been set
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a powerValue is NULL or contains invalid values
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ *
+ * @see NVML_FI_DEV_POWER_AVERAGE
+ * @see NVML_FI_DEV_POWER_INSTANT
+ * @see NVML_FI_DEV_POWER_MIN_LIMIT
+ * @see NVML_FI_DEV_POWER_MAX_LIMIT
+ * @see NVML_FI_DEV_POWER_CURRENT_LIMIT
+ */
+nvmlReturn_t DECLDIR nvmlDeviceSetPowerManagementLimit_v2(nvmlDevice_t device, nvmlPowerValue_v2_t *powerValue);
+
+/**
+ * @} // @defgroup nvmlDeviceQueries Device Queries
  */
 
 /** @addtogroup nvmlAccountingStats
@@ -8643,42 +8677,11 @@ nvmlReturn_t DECLDIR nvmlDeviceSetAccountingMode(nvmlDevice_t device, nvmlEnable
  */
 nvmlReturn_t DECLDIR nvmlDeviceClearAccountingPids(nvmlDevice_t device);
 
-/**
- * Set new power limit of this device.
- *
- * For Kepler &tm; or newer fully supported devices.
- * Requires root/admin permissions.
- *
- * See \ref nvmlDeviceGetPowerManagementLimitConstraints to check the allowed ranges of values.
- *
- * See \ref nvmlPowerValue_v2_t for more information on the struct.
- *
- * \note Limit is not persistent across reboots or driver unloads.
- * Enable persistent mode to prevent driver from unloading when no application is using the device.
- *
- * This API replaces nvmlDeviceSetPowerManagementLimit. It can be used as a drop-in replacement for the older version.
- *
- * @param device                               The identifier of the target device
- * @param powerValue                           Power management limit in milliwatts to set
- *
- * @return
- *         - \ref NVML_SUCCESS                 if \a limit has been set
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a powerValue is NULL or contains invalid values
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
- *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- *
- * @see NVML_FI_DEV_POWER_AVERAGE
- * @see NVML_FI_DEV_POWER_INSTANT
- * @see NVML_FI_DEV_POWER_MIN_LIMIT
- * @see NVML_FI_DEV_POWER_MAX_LIMIT
- * @see NVML_FI_DEV_POWER_CURRENT_LIMIT
- */
-nvmlReturn_t DECLDIR nvmlDeviceSetPowerManagementLimit_v2(nvmlDevice_t device, nvmlPowerValue_v2_t *powerValue);
+/** @} */ // @addtogroup nvmlAccountingStats
 
 /***************************************************************************************************/
-/** @defgroup NVML NVLink
+/** @defgroup NvLink NvLink Methods
+ * This chapter describes methods that NVML can perform on NVLINK enabled devices.
  *  @{
  */
 /***************************************************************************************************/
@@ -8732,18 +8735,6 @@ typedef struct
 } nvmlNvlinkSetBwMode_v1_t;
 typedef nvmlNvlinkSetBwMode_v1_t nvmlNvlinkSetBwMode_t;
 #define nvmlNvlinkSetBwMode_v1 NVML_STRUCT_VERSION(NvlinkSetBwMode, 1)
-
-/** @} */ // @defgroup NVML NVLink
-
-
-/** @} */
-
-/***************************************************************************************************/
-/** @defgroup NvLink NvLink Methods
- * This chapter describes methods that NVML can perform on NVLINK enabled devices.
- *  @{
- */
-/***************************************************************************************************/
 
 /**
  * Retrieves the state of the device's NvLink for the link specified
@@ -9097,7 +9088,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvlinkBwMode(nvmlDevice_t device,
 nvmlReturn_t DECLDIR nvmlDeviceSetNvlinkBwMode(nvmlDevice_t device,
                                                nvmlNvlinkSetBwMode_t *setBwMode);
 
-/** @} */
+/** @} */ // @defgroup NvLink NvLink Methods
 
 /***************************************************************************************************/
 /** @defgroup nvmlEvents Event Handling Methods
@@ -10733,7 +10724,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceSetVgpuHeterogeneousMode(nvmlGpuInstance_t g
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvml vGPU Migration
+/** @defgroup nvmlVgpuMigration vGPU Migration
  * This chapter describes operations that are associated with vGPU Migration.
  *  @{
  */
@@ -11052,7 +11043,7 @@ nvmlReturn_t DECLDIR nvmlGetVgpuVersion(nvmlVgpuVersion_t *supported, nvmlVgpuVe
  */
 nvmlReturn_t DECLDIR nvmlSetVgpuVersion(nvmlVgpuVersion_t *vgpuVersion);
 
-/** @} */
+/** @} */ // @defgroup nvmlVgpuMigration vGPU Migration
 
 /***************************************************************************************************/
 /** @defgroup nvmlUtil vGPU Utilization and Accounting
