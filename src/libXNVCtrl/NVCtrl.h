@@ -3682,7 +3682,14 @@
 #define NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ                     443 /* R-DG */
 #define NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ_DISABLED            0x0
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
+/*
+ * NV_CTRL_DISPLAYPORT_FORCE_ENABLE_FEC - Controls whether to attempt forcing
+ * FEC to be enabled for any DisplayPort connections. Will force link training
+ * to occur whenever the value toggles.
+ */
+#define NV_CTRL_DISPLAYPORT_FORCE_ENABLE_FEC                    444 /* R-- */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_FORCE_ENABLE_FEC
 
 /**************************************************************************/
 
@@ -3691,7 +3698,7 @@
  *
  * String attributes can be queryied through the XNVCTRLQueryStringAttribute()
  * and XNVCTRLQueryTargetStringAttribute() function calls.
- * 
+ *
  * String attributes can be set through the XNVCTRLSetStringAttribute()
  * function call.  (There are currently no string attributes that can be
  * set on non-X Screen targets.)

@@ -279,6 +279,8 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     GET_SYMBOL(_OPTIONAL, DeviceGetPcieLinkMaxSpeed);
     GET_SYMBOL(_OPTIONAL, DeviceGetPcieSpeed);
     GET_SYMBOL(_OPTIONAL, DeviceGetAdaptiveClockInfoStatus);
+    GET_SYMBOL(_OPTIONAL, DeviceGetPowerMizerMode_v1);
+    GET_SYMBOL(_OPTIONAL, DeviceSetPowerMizerMode_v1);
 #undef GET_SYMBOL
 #undef EXPAND_STRING
 #undef STRINGIFY_SYMBOL
@@ -1249,6 +1251,23 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 ret = nvml->lib.DeviceGetPcieSpeed(device, &res);
                 break;
 
+            case NV_CTRL_GPU_POWER_MIZER_MODE:
+                {
+                    nvmlDevicePowerMizerModes_v1_t powerMizerMode;
+                    assert(NVML_POWER_MIZER_MODE_ADAPTIVE ==
+                           NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE);
+                    assert(NVML_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE ==
+                           NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE);
+                    assert(NVML_POWER_MIZER_MODE_AUTO ==
+                           NV_CTRL_GPU_POWER_MIZER_MODE_AUTO);
+                    assert(NVML_POWER_MIZER_MODE_PREFER_CONSISTENT_PERFORMANCE ==
+                           NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_CONSISTENT_PERFORMANCE);
+                    ret = nvml->lib.DeviceGetPowerMizerMode_v1(device,
+                                                               &powerMizerMode);
+                    res = powerMizerMode.currentMode;
+                    break;
+                }
+
             case NV_CTRL_OPERATING_SYSTEM:
 #if defined(NV_LINUX)
                 res = NV_CTRL_OPERATING_SYSTEM_LINUX;
@@ -1279,7 +1298,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
 
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
             case NV_CTRL_ENABLED_DISPLAYS:
             case NV_CTRL_CONNECTED_DISPLAYS:
@@ -1888,8 +1906,15 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
                 ret = nvmlClockOffsetHelper(device, nvml, attr, NULL, NULL, &val);
                 break;
 
-            case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
+                {
+                    nvmlDevicePowerMizerModes_v1_t powerMizerMode;
+                    powerMizerMode.mode = val;
+                    ret = nvml->lib.DeviceSetPowerMizerMode_v1(device, &powerMizerMode);
+                    break;
+                }
+
+            case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
             case NV_CTRL_DITHERING:
             case NV_CTRL_DITHERING_MODE:
             case NV_CTRL_DITHERING_DEPTH:
@@ -2442,9 +2467,16 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
                 val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BITMASK;
                 break;
 
+            case NV_CTRL_GPU_POWER_MIZER_MODE:
+                {
+                    nvmlDevicePowerMizerModes_v1_t powerMizerMode;
+                    ret = nvml->lib.DeviceGetPowerMizerMode_v1(device, &powerMizerMode);
+                    val->allowed_ints = powerMizerMode.supportedPowerMizerModes;
+                    val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS;
+                    break;
+                }
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_BUS_TYPE:
-            case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
             case NV_CTRL_ENABLED_DISPLAYS:
             case NV_CTRL_CONNECTED_DISPLAYS:
@@ -2695,6 +2727,7 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_THERMAL_COOLER_LEVEL:
         case NV_CTRL_GPU_ECC_CONFIGURATION:
         case NV_CTRL_GPU_ECC_RESET_ERROR_STATUS:
+        case NV_CTRL_GPU_POWER_MIZER_MODE:
             perms->write = NV_TRUE;
             break;
         default:
@@ -2738,9 +2771,16 @@ static ReturnStatus NvCtrlNvmlGetIntegerAttributePerms(int attr,
         case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
         case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
         case NV_CTRL_GPU_NVCLOCK_OFFSET:
+        case NV_CTRL_GPU_POWER_MIZER_MODE:
         /* CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS */
             perms->read = NV_TRUE;
             perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET);
+            break;
+        /* GPU_TARGET and also valid for X_SCREEN_TARGET if available */
+        case NV_CTRL_OPERATING_SYSTEM:
+            perms->read = NV_TRUE;
+            perms->valid_targets = CTRL_TARGET_PERM_BIT(GPU_TARGET) |
+                                   CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
             break;
         /* GPU_TARGET non-readable attribute */
         case NV_CTRL_GPU_ECC_RESET_ERROR_STATUS:
@@ -2823,6 +2863,10 @@ NvCtrlNvmlGetAttributePerms(const NvCtrlAttributePrivateHandle *h,
 
         default:
             return NvCtrlBadArgument;
+    }
+
+    if (h->nv == NULL) {
+        perms->valid_targets &= ~CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
     }
 
     return ret;

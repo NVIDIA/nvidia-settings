@@ -716,6 +716,10 @@ static Bool parse_slimm_layout(CtkMMDialog *ctk_mmdialog,
 
         /* Parse each mode */
         mode_str = parse_skip_whitespace(mode_str);
+        if (strcmp(mode_str, "NULL") == 0) {
+            err_msg = "No MetaMode found.";
+            goto fail;
+        }
 
 
         /* Skip the display name */

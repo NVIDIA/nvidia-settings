@@ -124,7 +124,7 @@ static const char *__powermizer_auto_mode_help =
 "'Auto' mode lets the driver choose the best Performance State for your GPU.  ";
 
 static const char *__powermizer_adaptive_mode_help =
-"'Adaptive' mode allows the GPU clocks to be adjusted based on GPU "
+"'Normal' mode allows the GPU clocks to be adjusted based on GPU "
 "utilization.  ";
 
 static const char *__powermizer_prefer_maximum_performance_help =
@@ -1080,7 +1080,7 @@ static gchar* get_powermizer_menu_label(const unsigned int val)
         label = g_strdup_printf("Auto");
         break;
     case NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE:
-        label = g_strdup_printf("Adaptive");
+        label = g_strdup_printf("Normal");
         break;
     case NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE:
         label = g_strdup_printf("Prefer Maximum Performance");

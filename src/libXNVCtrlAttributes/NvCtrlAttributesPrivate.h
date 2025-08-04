@@ -220,6 +220,8 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetPcieLinkMaxSpeed)                (*DeviceGetPcieLinkMaxSpeed);
         typeof(nvmlDeviceGetPcieSpeed)                       (*DeviceGetPcieSpeed);
         typeof(nvmlDeviceGetAdaptiveClockInfoStatus)         (*DeviceGetAdaptiveClockInfoStatus);
+        typeof(nvmlDeviceGetPowerMizerMode_v1)               (*DeviceGetPowerMizerMode_v1);
+        typeof(nvmlDeviceSetPowerMizerMode_v1)               (*DeviceSetPowerMizerMode_v1);
     } lib;
 
     unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */

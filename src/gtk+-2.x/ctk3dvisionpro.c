@@ -568,7 +568,7 @@ static void callback_glasses_paired(GObject *object,
     }
     // Create glasses_info
     glasses = (GlassesInfo *)malloc(sizeof(GlassesInfo));
-    strncpy(glasses->name, glasses_name, sizeof(glasses->name));;
+    strncpy(glasses->name, glasses_name, sizeof(glasses->name) - 1);
     glasses->name[sizeof(glasses->name) - 1] = '\0';
     glasses->battery = battery_level;
     glasses->glasses_id = glasses_id;
@@ -789,7 +789,7 @@ static void svp_config_changed(GObject *object,
                     if (ret != NvCtrlSuccess || glasses_name == NULL) {
                         continue;
                     }
-                    strncpy(glasses->name, glasses_name, sizeof(glasses->name));
+                    strncpy(glasses->name, glasses_name, sizeof(glasses->name) - 1);
                     glasses->name[sizeof(glasses->name)-1] = '\0';
                     free(glasses_name);
                 }
@@ -1566,7 +1566,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
             battery_level = 0;
         }
 
-        strncpy(glasses->name, glasses_name, sizeof(glasses->name));
+        strncpy(glasses->name, glasses_name, sizeof(glasses->name) - 1);
         glasses->name[sizeof(glasses->name) - 1] = '\0';
         glasses->battery = battery_level;
         glasses->glasses_id = glasses_id;

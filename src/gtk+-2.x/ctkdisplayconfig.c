@@ -652,7 +652,7 @@ void xconfigPrint(MsgType t, const char *msg)
         int newline;
     } MessageTypeAttributes;
 
-    char *prefix = NULL;
+    const char *prefix = "";
     int i, newline = FALSE;
     FILE *stream = stdout;
     
@@ -5889,7 +5889,7 @@ static void do_enable_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
     }
 
     /* Make sure we're allowed to enable this display */
-    if (gpu->mosaic_enabled ||
+    if ((gpu->mosaic_enabled && layout->screens) ||
         (num_screens_on_gpu >= gpu->max_displays) ||
         display->screen) {
         return;
@@ -6386,8 +6386,12 @@ static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
                     /* Enable any displays that are currently disabled and
                      * assign them to the mosaic screen.
                      */
-                    do_enable_display_on_xscreen(ctk_object, display,
-                                                 layout->screens);
+                    if (layout->screens) {
+                        do_enable_display_on_xscreen(ctk_object, display,
+                                                     layout->screens);
+                    } else {
+                        do_enable_display_on_new_xscreen(ctk_object, display);
+                    }
                 }
 
                 if (display->num_selected_modes == 0) {

@@ -861,7 +861,6 @@ static gboolean update_gpu_usage(gpointer user_data)
                              &value);
     if (ret != NvCtrlSuccess || value > ctk_gpu->gpu_memory || value < 0) {
         gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), "Unknown");
-        return FALSE;
     } else {
         if (ctk_gpu->gpu_memory > 0) {
             memory_text = g_strdup_printf("%d MB (%.0f%%)", 

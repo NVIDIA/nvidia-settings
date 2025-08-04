@@ -1231,7 +1231,7 @@ static void print_queried_value(const Options *op,
     } else if (v->valid_type == CTRL_ATTRIBUTE_VALID_TYPE_BITMASK) {
         snprintf(val_str, 64, "0x%08x", val);
     } else if (a->f.int_flags.is_packed) {
-        snprintf(val_str, 64, "%d,%d", val >> 16, val & 0xffff);
+        snprintf(val_str, 64, (val & 0xffff) == 0 ? "%d, N/A" : "%d,%d", val >> 16, val & 0xffff);
     } else {
         snprintf(val_str, 64, "%d", val);
     }

@@ -493,7 +493,8 @@ NvCtrlNvControlGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
 
     if (attr == NV_CTRL_STRING_NV_CONTROL_VERSION) {
         char str[24];
-        if (h->target_type != X_SCREEN_TARGET) {
+        if (h->target_type != X_SCREEN_TARGET &&
+            h->target_type != GPU_TARGET) {
             return NvCtrlBadHandle;
         }
         sprintf(str, "%d.%d", h->nv->major_version, h->nv->minor_version);

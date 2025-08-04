@@ -284,6 +284,7 @@ const AttributeTableEntry attributeTable[] = {
     { "XineramaInfoOrder",                NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,    STR_ATTR, {0,0,0,1,0}, {}, "Controls the nvidiaXineramaInfoOrder." },
     { "BuildModepool",                    NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,      SOP_ATTR, {0,0,0,1,1}, {}, "Build the modepool of the display device if it does not already have one." },
     { "DisplayPortConnectorType",         NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE,           INT_ATTR, {0,0,0,1,0}, {}, "Returns the DisplayPort connector type."},
+    { "DisplayPortForceEnableFEC",        NV_CTRL_DISPLAYPORT_FORCE_ENABLE_FEC,         INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), then FEC is force-enabled and link training re-occurs on this display."},
     { "DisplayPortIsMultiStream",         NV_CTRL_DISPLAYPORT_IS_MULTISTREAM,           INT_ATTR, {0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is a MultiStream device, and 0 otherwise."},
     { "DisplayPortSinkIsAudioCapable",    NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE,    INT_ATTR, {0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is capable of playing audio, and 0 otherwise."},
     { "DisplayVRRMode",                   NV_CTRL_DISPLAY_VRR_MODE,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the specified display device is G-SYNC or G-SYNC Compatible." },
@@ -360,7 +361,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE_10MHZ
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_FORCE_ENABLE_FEC
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -1502,7 +1503,7 @@ int count_number_of_bits(unsigned int mask)
  **/
 const char *parse_skip_whitespace(const char *str)
 {
-    while (*str &&
+    while (str && *str &&
            (*str == ' '  || *str == '\t' ||
             *str == '\n' || *str == '\r')) {
         str++;
@@ -1616,6 +1617,10 @@ const char *parse_read_name(const char *str, char **name, char term)
     const char *tmp;
 
     str = parse_skip_whitespace(str);
+    if (!str) {
+        return NULL;
+    }
+
     tmp = str;
     while (*str && !name_terminated(*str, term)) {
         str++;
