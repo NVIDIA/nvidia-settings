@@ -3189,13 +3189,16 @@ typedef nvmlConfComputeGetKeyRotationThresholdInfo_v1_t nvmlConfComputeGetKeyRot
  */
 /***************************************************************************************************/
 
-#define NVML_GPU_FABRIC_UUID_LEN 16
+#define NVML_GPU_FABRIC_UUID_LEN 16 //!< Length of Fabric UUID
 
-#define NVML_GPU_FABRIC_STATE_NOT_SUPPORTED 0
-#define NVML_GPU_FABRIC_STATE_NOT_STARTED   1
-#define NVML_GPU_FABRIC_STATE_IN_PROGRESS   2
-#define NVML_GPU_FABRIC_STATE_COMPLETED     3
+#define NVML_GPU_FABRIC_STATE_NOT_SUPPORTED 0 //!< Fabric Probe State not supported
+#define NVML_GPU_FABRIC_STATE_NOT_STARTED   1 //!< Fabric Probe has not started
+#define NVML_GPU_FABRIC_STATE_IN_PROGRESS   2 //!< Fabric Probe in progress
+#define NVML_GPU_FABRIC_STATE_COMPLETED     3 //!< Fabric Probe State completed
 
+/**
+ * Probe State of GPU registration process
+ */
 typedef unsigned char nvmlGpuFabricState_t;
 
 /**
@@ -3205,48 +3208,48 @@ typedef struct {
     unsigned char        clusterUuid[NVML_GPU_FABRIC_UUID_LEN]; //!< Uuid of the cluster to which this GPU belongs
     nvmlReturn_t         status;                                //!< Error status, if any. Must be checked only if state returns "complete".
     unsigned int         cliqueId;                              //!< ID of the fabric clique to which this GPU belongs
-    nvmlGpuFabricState_t state;                                 //!< Current state of GPU registration process
+    nvmlGpuFabricState_t state;                                 //!< Current state of GPU registration process. See NVML_GPU_FABRIC_STATE_*
 } nvmlGpuFabricInfo_t;
 
-/*
+/**
  * Fabric Degraded BW
  */
-#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_NOT_SUPPORTED 0
-#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_TRUE          1
-#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_FALSE         2
+#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_NOT_SUPPORTED 0 //!< Fabric Health Mask: Degraded Bandwidth not supported
+#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_TRUE          1 //!< Fabric Health Mask: Bandwidth degraded
+#define NVML_GPU_FABRIC_HEALTH_MASK_DEGRADED_BW_FALSE         2 //!< Fabric Health Mask: Bandwidth not degraded
 
-#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_DEGRADED_BW 0
-#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_DEGRADED_BW 0x3
+#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_DEGRADED_BW 0         //!< Fabric Health Mask Bit Shift for Degraded Bandwidth
+#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_DEGRADED_BW 0x3       //!< Fabric Health Mask Width for Degraded Bandwidth
 
-/*
+/**
  * Fabric Route Recovery
  */
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_NOT_SUPPORTED 0
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_TRUE          1
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_FALSE         2
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_NOT_SUPPORTED 0 //!< Fabric Health Mask: Route Recovery not supported
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_TRUE          1 //!< Fabric Health Mask: Route Recovery in progress
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_RECOVERY_FALSE         2 //!< Fabric Health Mask: Route Recovery not in progress
 
-#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ROUTE_RECOVERY 2
-#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ROUTE_RECOVERY 0x3
+#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ROUTE_RECOVERY 2         //!< Fabric Health Mask Bit Shift for Route Recovery
+#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ROUTE_RECOVERY 0x3       //!< Fabric Health Mask Width for Route Recovery
 
-/*
+/**
  * Nvlink Fabric Route Unhealthy
  */
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_NOT_SUPPORTED 0
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_TRUE          1
-#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_FALSE         2
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_NOT_SUPPORTED 0 //!< Fabric Health Mask: Route Unhealthy not supported
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_TRUE          1 //!< Fabric Health Mask: Route is unhealthy
+#define NVML_GPU_FABRIC_HEALTH_MASK_ROUTE_UNHEALTHY_FALSE         2 //!< Fabric Health Mask: Route is healthy
 
-#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ROUTE_UNHEALTHY 4
-#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ROUTE_UNHEALTHY 0x3
+#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ROUTE_UNHEALTHY 4         //!< Fabric Health Mask Bit Shift for Route Unhealthy
+#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ROUTE_UNHEALTHY 0x3       //!< Fabric Health Mask Width for Route Unhealthy
 
-/*
+/**
  * Fabric Access Timeout Recovery
  */
-#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_NOT_SUPPORTED 0
-#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_TRUE          1
-#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_FALSE         2
+#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_NOT_SUPPORTED 0 //!< Fabric Health Mask: Access Timeout Recovery not supported
+#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_TRUE          1 //!< Fabric Health Mask: Access Timeout Recovery in progress
+#define NVML_GPU_FABRIC_HEALTH_MASK_ACCESS_TIMEOUT_RECOVERY_FALSE         2 //!< Fabric Health Mask: Access Timeout Recovery not in progress
 
-#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ACCESS_TIMEOUT_RECOVERY 6
-#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ACCESS_TIMEOUT_RECOVERY 0x3
+#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_ACCESS_TIMEOUT_RECOVERY 6         //!< Fabric Health Mask Bit Shift for Access Timeout Recovery
+#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_ACCESS_TIMEOUT_RECOVERY 0x3       //!< Fabric Health Mask Width for Access Timeout Recovery
 
 /**
  * GPU Fabric Health Status Mask for various fields can be obtained
@@ -3279,8 +3282,8 @@ typedef struct {
     unsigned char        clusterUuid[NVML_GPU_FABRIC_UUID_LEN]; //!< Uuid of the cluster to which this GPU belongs
     nvmlReturn_t         status;                                //!< Error status, if any. Must be checked only if state returns "complete".
     unsigned int         cliqueId;                              //!< ID of the fabric clique to which this GPU belongs
-    nvmlGpuFabricState_t state;                                 //!< Current state of GPU registration process
-    unsigned int         healthMask;                            //!< GPU Fabric health Status Mask
+    nvmlGpuFabricState_t state;                                 //!< Current Probe State of GPU registration process. See NVML_GPU_FABRIC_STATE_*
+    unsigned int         healthMask;                            //!< GPU Fabric health Status Mask. See NVML_GPU_FABRIC_HEALTH_MASK_*
 } nvmlGpuFabricInfo_v2_t;
 
 typedef nvmlGpuFabricInfo_v2_t nvmlGpuFabricInfoV_t;
@@ -10833,6 +10836,55 @@ nvmlReturn_t DECLDIR nvmlGetExcludedDeviceCount(unsigned int *deviceCount);
  * @see nvmlGetExcludedDeviceCount
  */
 nvmlReturn_t DECLDIR nvmlGetExcludedDeviceInfoByIndex(unsigned int index, nvmlExcludedDeviceInfo_t *info);
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlGPUPRMAccess PRM Access
+ * This chapter describes NVML operations that are associated with PRM register reads
+ *  @{
+ */
+/***************************************************************************************************/
+
+#define NVML_PRM_DATA_MAX_SIZE 496
+/**
+ * Main PRM input structure
+ */
+typedef struct
+{
+    /* I/O parameters */
+    unsigned dataSize;                                  //!< Size of the input TLV data.
+    unsigned status;                                    //!< OUT: status of the PRM command
+    union {
+        /* Input data in TLV format */
+        unsigned char inData[NVML_PRM_DATA_MAX_SIZE];   //!< IN: Input data in TLV format
+        /* Output data in TLV format */
+        unsigned char outData[NVML_PRM_DATA_MAX_SIZE];  //!< OUT: Output PRM data in TLV format
+    };
+} nvmlPRMTLV_v1_t;
+
+/**
+ * Read or write a GPU PRM register. The input is assumed to be in TLV format in
+ * network byte order.
+ *
+ * %BLACKWELL_OR_NEWER%
+ *
+ * Supported on Linux only.
+ *
+ * @param device                                        Identifer of target GPU device
+ * @param buffer                                        Structure holding the input data in TLV format as well as
+ *                                                      the PRM register contents in TLV format (in the case of a successful
+ *                                                      read operation).
+ *                                                      Note: the input data and any returned data shall be in network byte order.
+ *
+ * @return
+ *        - \ref NVML_SUCCESS                           on success
+ *        - \ref NVML_ERROR_INVALID_ARGUMENT            if \p device or \p buffer are invalid
+ *        - \ref NVML_ERROR_NO_PERMISSION               if user does not have permission to perform this operation
+ *        - \ref NVML_ERROR_NOT_SUPPORTED               if this feature is not supported by the device
+ *        - \ref NVML_ERROR_ARGUMENT_VERSION_MISMATCH   if the version specified in \p buffer is not supported
+ */
+nvmlReturn_t DECLDIR nvmlDeviceReadWritePRM_v1(nvmlDevice_t device, nvmlPRMTLV_v1_t *buffer);
 
 /** @} */
 
