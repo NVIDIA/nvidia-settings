@@ -3598,6 +3598,8 @@ typedef struct
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INCORRECT_CHASSIS_SN 3 //!< Fabric Health Mask: Incorrect Configuration - Chassis Serial Number
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_NO_PARTITION         4 //!< Fabric Health Mask: Incorrect Configuration - No Partition
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INSUFFICIENT_NVLINKS 5 //!< Fabric Health Mask: Incorrect Configuration - Insufficient Nvlinks
+#define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INCOMPATIBLE_GPU_FW  6 //!< Fabric Health Mask: Incorrect Configuration - Incompatible GPU Firmware
+#define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INVALID_LOCATION     7 //!< Fabric Health Mask: Incorrect Configuration - Invalid Location
 
 #define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_INCORRECT_CONFIGURATION 8                //!< Fabric Health Mask Bit Shift for Incorrect Configuration
 #define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_INCORRECT_CONFIGURATION 0xf              //!< Fabric Health Mask Width for Incorrect Configuration
@@ -4689,7 +4691,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNumaNodeId(nvmlDevice_t device, unsigned int *
  *          a single set of page tables, and the CPU and GPU both use them.
  * 3. None: Neither HMM nor ATS is active.
  *
- * %TURING_OR_NEWER%
+ * For Turing &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param[in]      device                  The device handle
@@ -6299,6 +6301,10 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuOperationMode(nvmlDevice_t device, nvmlGpuO
  *       the operating system is under memory pressure, it may resort to utilizing FB memory.
  *       Such actions can result in discrepancies in the accuracy of memory reporting.
  *
+ * @note On certain SOC platforms, the integrated GPU (iGPU) does not use a dedicated framebuffer
+ *       but instead shares memory with the system. As a result, \ref NVML_ERROR_NOT_SUPPORTED
+ *       will be returned in this case.
+ *
  * @param device                               The identifier of the target device
  * @param memory                               Reference in which to return the memory information
  *
@@ -6308,6 +6314,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuOperationMode(nvmlDevice_t device, nvmlGpuO
  *         - \ref NVML_ERROR_NO_PERMISSION     if the user doesn't have permission to perform this operation
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a memory is NULL
  *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if video memory is unsupported on the device
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t *memory);
@@ -6366,7 +6373,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int
 /**
  * Retrieves the current and pending DRAM Encryption modes for the device.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  * Only applicable to devices that support DRAM Encryption
  * Requires \a NVML_INFOROM_DEN version 1.0 or higher.
  *
@@ -6768,7 +6775,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetDecoderUtilization(nvmlDevice_t device, unsign
 /**
  * Retrieves the current utilization and sampling size in microseconds for the JPG
  *
- * %TURING_OR_NEWER%
+ * For Turing &tm; or newer fully supported devices.
  *
  * @note On MIG-enabled GPUs, querying decoder utilization is not currently supported.
  *
@@ -6789,7 +6796,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetJpgUtilization(nvmlDevice_t device, unsigned i
 /**
  * Retrieves the current utilization and sampling size in microseconds for the OFA (Optical Flow Accelerator)
  *
- * %TURING_OR_NEWER%
+ * For Turing &tm; or newer fully supported devices.
  *
  * @note On MIG-enabled GPUs, querying decoder utilization is not currently supported.
  *
@@ -8105,7 +8112,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetProcessesUtilizationInfo(nvmlDevice_t device, 
 /**
  * Get platform information of this device.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * See \ref nvmlPlatformInfo_v2_t for more information on the struct.
  *
@@ -9251,7 +9258,7 @@ nvmlReturn_t DECLDIR nvmlSystemGetNvlinkBwMode(unsigned int *nvlinkBwMode);
 /**
  * Get the supported NvLink Reduced Bandwidth Modes of the device
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * @param device                                      The identifier of the target device
  * @param supportedBwMode                             Reference to \a nvmlNvlinkSupportedBwModes_t
@@ -9268,7 +9275,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvlinkSupportedBwModes(nvmlDevice_t device,
 /**
  * Get the NvLink Reduced Bandwidth Mode for the device
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * @param device                                      The identifier of the target device
  * @param getBwMode                                   Reference to \a nvmlNvlinkGetBwMode_t
@@ -9285,7 +9292,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvlinkBwMode(nvmlDevice_t device,
 /**
  * Set the NvLink Reduced Bandwidth Mode for the device
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * @param device                                      The identifier of the target device
  * @param setBwMode                                   Reference to \a nvmlNvlinkSetBwMode_t
@@ -10799,7 +10806,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetActiveVgpus(nvmlGpuInstance_t gpuInstance
 /**
  * Set vGPU scheduler state for the given GPU instance
  *
- * %GB20X_OR_NEWER%
+ * For Blackwell &tm GB20x; or newer fully supported devices.
  *
  * Scheduler state and params will be allowed to set only when no VM is running within the GPU instance.
  * In \a nvmlVgpuSchedulerState_t, IFF enableARRMode is enabled then provide the avgFactor and frequency
@@ -10825,7 +10832,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceSetVgpuSchedulerState(nvmlGpuInstance_t gpuI
  * Returns the vGPU scheduler state for the given GPU instance.
  * The information returned in \a nvmlVgpuSchedulerStateInfo_t is not relevant if the BEST EFFORT policy is set.
  *
- * %GB20X_OR_NEWER%
+ * For Blackwell &tm GB20x; or newer fully supported devices.
  *
  * @param gpuInstance                The GPU instance handle
  * @param pSchedulerStateInfo        Reference in which \a pSchedulerStateInfo is returned
@@ -10848,7 +10855,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetVgpuSchedulerState(nvmlGpuInstance_t gpuI
  *
  * To get the entire logs, call the function atleast 5 times a second.
  *
- * %GB20X_OR_NEWER%
+ * For Blackwell &tm GB20x; or newer fully supported devices.
  *
  * @param gpuInstance               The GPU instance handle
  * @param pSchedulerLogInfo         Reference in which \a pSchedulerLogInfo is written
@@ -10867,7 +10874,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetVgpuSchedulerLog(nvmlGpuInstance_t gpuIns
 /**
  * Query the creatable vGPU placement ID of the vGPU type within a GPU instance.
  *
- * %GB20X_OR_NEWER%
+ * For Blackwell &tm GB20x; or newer fully supported devices.
  *
  * An array of creatable vGPU placement IDs for the vGPU type ID indicated by \a pCreatablePlacementInfo->vgpuTypeId
  * is returned in the caller-supplied buffer of \a pCreatablePlacementInfo->placementIds. Memory needed for the
@@ -10904,7 +10911,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetVgpuTypeCreatablePlacements(nvmlGpuInstan
  * set the correct version number to retrieve the vGPU heterogeneous mode.
  * \a pHeterogeneousMode->mode can either be \ref NVML_FEATURE_ENABLED or \ref NVML_FEATURE_DISABLED.
  *
- * %GB20X_OR_NEWER%
+ * For Blackwell &tm GB20x; or newer fully supported devices.
  *
  * @param gpuInstance               The GPU instance handle
  * @param pHeterogeneousMode        Pointer to the caller-provided structure of nvmlVgpuHeterogeneousMode_t
@@ -11670,7 +11677,7 @@ typedef struct
  * Read or write a GPU PRM register. The input is assumed to be in TLV format in
  * network byte order.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * Supported on Linux only.
  *
@@ -13227,7 +13234,7 @@ typedef nvmlWorkloadPowerProfileRequestedProfiles_v1_t nvmlWorkloadPowerProfileR
 /**
  * Get Performance Profiles Information
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  * See \ref nvmlWorkloadPowerProfileProfilesInfo_v1_t for more information on the struct.
  * The mask \a perfProfilesMask is bitmask of all supported mode indices where the
  * mode is supported if the index is 1. Each supported mode will have a corresponding
@@ -13254,7 +13261,7 @@ nvmlReturn_t DECLDIR nvmlDeviceWorkloadPowerProfileGetProfilesInfo(nvmlDevice_t 
 /**
  * Get Current Performance Profiles
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  * See \ref nvmlWorkloadPowerProfileCurrentProfiles_v1_t for more information on the struct.
  * This API returns a stuct which contains the current \a perfProfilesMask,
  * \a requestedProfilesMask and \a enforcedProfilesMask. Each bit set in each
@@ -13278,7 +13285,7 @@ nvmlReturn_t DECLDIR nvmlDeviceWorkloadPowerProfileGetCurrentProfiles(nvmlDevice
 /**
  * Set Requested Performance Profiles
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  * See \ref nvmlWorkloadPowerProfileRequestedProfiles_v1_t for more information on the struct.
  * Reuqest one or more performance profiles be activated using the input bitmask
  * \a requestedProfilesMask, where each bit set corresponds to a supported bit from
@@ -13303,7 +13310,7 @@ nvmlReturn_t DECLDIR nvmlDeviceWorkloadPowerProfileSetRequestedProfiles(nvmlDevi
 /**
  * Clear Requested Performance Profiles
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  * See \ref nvmlWorkloadPowerProfileRequestedProfiles_v1_t for more information on the struct.
  * Clear one or more performance profiles be using the input bitmask
  * \a requestedProfilesMask, where each bit set corresponds to a supported bit from
@@ -13374,7 +13381,7 @@ typedef nvmlPowerSmoothingState_v1_t  nvmlPowerSmoothingState_t;
  * and ignores the other parameters of the structure.
  * Requires root/admin permissions.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * @param device                                The identifier of the target device
  * @param profile                               Reference to \ref nvmlPowerSmoothingProfile_v1_t.
@@ -13395,7 +13402,7 @@ nvmlReturn_t DECLDIR nvmlDevicePowerSmoothingActivatePresetProfile(nvmlDevice_t 
  * Update the value of a specific profile parameter contained within \ref nvmlPowerSmoothingProfile_v1_t.
  * Requires root/admin permissions.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_PERCENT_TMP_FLOOR expects a value as a percentage from 00.00-100.00%
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE expects a value in W/s
@@ -13418,7 +13425,7 @@ nvmlReturn_t DECLDIR nvmlDevicePowerSmoothingUpdatePresetProfileParam(nvmlDevice
  * Enable or disable the Power Smoothing Feature.
  * Requires root/admin permissions.
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * See \ref nvmlEnableState_t for details on allowed states
  *
@@ -13439,7 +13446,7 @@ nvmlReturn_t  DECLDIR nvmlDevicePowerSmoothingSetState(nvmlDevice_t device,
 /**
  * Retrieves the counts of SRAM unique uncorrected ECC errors
  *
- * %BLACKWELL_OR_NEWER%
+ * For Blackwell &tm; or newer fully supported devices.
  *
  * Reads SRAM unique uncorrected ECC error counts. The total number of unique errors is returned by
  * \a errorCounts->entryCount. Error counts are returned as an array of in the caller-supplied buffer pointed at by
