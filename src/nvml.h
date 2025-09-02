@@ -1448,6 +1448,16 @@ typedef struct
 typedef nvmlPlatformInfo_v2_t nvmlPlatformInfo_t;
 #define nvmlPlatformInfo_v2 NVML_STRUCT_VERSION(PlatformInfo, 2)
 
+/**
+ * Structure to store hostname information
+ */
+#define NVML_DEVICE_HOSTNAME_BUFFER_SIZE 64
+
+typedef struct
+{
+    char value[NVML_DEVICE_HOSTNAME_BUFFER_SIZE];   //!< null-terminated hostname string
+} nvmlHostname_v1_t;
+
 typedef struct
 {
     unsigned int unit;                                      //!< the SRAM unit index
@@ -2693,36 +2703,36 @@ typedef nvmlVgpuCreatablePlacementInfo_v1_t nvmlVgpuCreatablePlacementInfo_t;
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13                  248 //!< Count of symbol errors that are corrected - bin 13
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14                  249 //!< Count of symbol errors that are corrected - bin 14
 #define NVML_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15                  250 //!< Count of symbol errors that are corrected - bin 15
+/* Power Smoothing */
+#define NVML_FI_PWR_SMOOTHING_ENABLED                                   251 //!< Enablement (0/DISABLED or 1/ENABLED)
+#define NVML_FI_PWR_SMOOTHING_PRIV_LVL                                  252 //!< Current privilege level
+#define NVML_FI_PWR_SMOOTHING_IMM_RAMP_DOWN_ENABLED                     253 //!< Immediate ramp down enablement (0/DISABLED or 1/ENABLED)
+#define NVML_FI_PWR_SMOOTHING_APPLIED_TMP_CEIL                          254 //!< Applied TMP ceiling value in Watts
+#define NVML_FI_PWR_SMOOTHING_APPLIED_TMP_FLOOR                         255 //!< Applied TMP floor value in Watts
+#define NVML_FI_PWR_SMOOTHING_MAX_PERCENT_TMP_FLOOR_SETTING             256 //!< Max % TMP Floor value
+#define NVML_FI_PWR_SMOOTHING_MIN_PERCENT_TMP_FLOOR_SETTING             257 //!< Min % TMP Floor value
+#define NVML_FI_PWR_SMOOTHING_HW_CIRCUITRY_PERCENT_LIFETIME_REMAINING   258 //!< HW Circuitry % lifetime remaining
+#define NVML_FI_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES                   259 //!< Max number of preset profiles
+#define NVML_FI_PWR_SMOOTHING_PROFILE_PERCENT_TMP_FLOOR                 260 //!< % TMP floor for a given profile
+#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_UP_RATE                      261 //!< Ramp up rate in mW/s for a given profile
+#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_DOWN_RATE                    262 //!< Ramp down rate in mW/s for a given profile
+#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_DOWN_HYST_VAL                263 //!< Ramp down hysteresis value in ms for a given profile
+#define NVML_FI_PWR_SMOOTHING_ACTIVE_PRESET_PROFILE                     264 //!< Active preset profile number
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PERCENT_TMP_FLOOR          265 //!< % TMP floor for a given profile
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_UP_RATE               266 //!< Ramp up rate in mW/s for a given profile
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_RATE             267 //!< Ramp down rate in mW/s for a given profile
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_HYST_VAL         268 //!< Ramp down hysteresis value in ms for a given profile
 /**
  * Field values for Clock Throttle Reason Counters
  * All counters are in nanoseconds
  */
 #define NVML_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP             NVML_FI_DEV_PERF_POLICY_POWER      //!< Throttling to not exceed currently set power limits in ns
 #define NVML_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST               NVML_FI_DEV_PERF_POLICY_SYNC_BOOST //!< Throttling to match minimum possible clock across Sync Boost Group in ns
-#define NVML_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN        251 //!< Throttling to ensure ((GPU temp < GPU Max Operating Temp) && (Memory Temp < Memory Max Operating Temp)) in ns
-#define NVML_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN        252 //!< Throttling due to temperature being too high (reducing core clocks by a factor of 2 or more) in ns
-#define NVML_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN  253 //!< Throttling due to external power brake assertion trigger (reducing core clocks by a factor of 2 or more) in ns
-#define NVML_FI_DEV_POWER_SYNC_BALANCING_FREQ                    254 //!< Accumulated frequency of the GPU to be used for averaging
-#define NVML_FI_DEV_POWER_SYNC_BALANCING_AF                      255 //!< Accumulated activity factor of the GPU to be used for averaging
-/* Power Smoothing */
-#define NVML_FI_PWR_SMOOTHING_ENABLED                                   256 //!< Enablement (0/DISABLED or 1/ENABLED)
-#define NVML_FI_PWR_SMOOTHING_PRIV_LVL                                  257 //!< Current privilege level
-#define NVML_FI_PWR_SMOOTHING_IMM_RAMP_DOWN_ENABLED                     258 //!< Immediate ramp down enablement (0/DISABLED or 1/ENABLED)
-#define NVML_FI_PWR_SMOOTHING_APPLIED_TMP_CEIL                          259 //!< Applied TMP ceiling value in Watts
-#define NVML_FI_PWR_SMOOTHING_APPLIED_TMP_FLOOR                         260 //!< Applied TMP floor value in Watts
-#define NVML_FI_PWR_SMOOTHING_MAX_PERCENT_TMP_FLOOR_SETTING             261 //!< Max % TMP Floor value
-#define NVML_FI_PWR_SMOOTHING_MIN_PERCENT_TMP_FLOOR_SETTING             262 //!< Min % TMP Floor value
-#define NVML_FI_PWR_SMOOTHING_HW_CIRCUITRY_PERCENT_LIFETIME_REMAINING   263 //!< HW Circuitry % lifetime remaining
-#define NVML_FI_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES                   264 //!< Max number of preset profiles
-#define NVML_FI_PWR_SMOOTHING_PROFILE_PERCENT_TMP_FLOOR                 265 //!< % TMP floor for a given profile
-#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_UP_RATE                      266 //!< Ramp up rate in mW/s for a given profile
-#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_DOWN_RATE                    267 //!< Ramp down rate in mW/s for a given profile
-#define NVML_FI_PWR_SMOOTHING_PROFILE_RAMP_DOWN_HYST_VAL                268 //!< Ramp down hysteresis value in ms for a given profile
-#define NVML_FI_PWR_SMOOTHING_ACTIVE_PRESET_PROFILE                     269 //!< Active preset profile number
-#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PERCENT_TMP_FLOOR          270 //!< % TMP floor for a given profile
-#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_UP_RATE               271 //!< Ramp up rate in mW/s for a given profile
-#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_RATE             272 //!< Ramp down rate in mW/s for a given profile
-#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_HYST_VAL         273 //!< Ramp down hysteresis value in ms for a given profile
+#define NVML_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN        269 //!< Throttling to ensure ((GPU temp < GPU Max Operating Temp) && (Memory Temp < Memory Max Operating Temp)) in ns
+#define NVML_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN        270 //!< Throttling due to temperature being too high (reducing core clocks by a factor of 2 or more) in ns
+#define NVML_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN  271 //!< Throttling due to external power brake assertion trigger (reducing core clocks by a factor of 2 or more) in ns
+#define NVML_FI_DEV_POWER_SYNC_BALANCING_FREQ                    272 //!< Accumulated frequency of the GPU to be used for averaging
+#define NVML_FI_DEV_POWER_SYNC_BALANCING_AF                      273 //!< Accumulated activity factor of the GPU to be used for averaging
 #define NVML_FI_MAX                                              274 //!< One greater than the largest field ID defined above
 
 /**
@@ -8149,6 +8159,56 @@ nvmlReturn_t DECLDIR nvmlDeviceGetPlatformInfo(nvmlDevice_t device, nvmlPlatform
  *         - \ref NVML_ERROR_UNKNOWN                    on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetPdi(nvmlDevice_t device, nvmlPdi_t *pdi);
+
+/**
+ * Set the hostname for the device.
+ *
+ * For Blackwell &tm; or newer fully supported devices.
+ * Requires root/admin permissions.
+ * Supported on Linux only.
+ *
+ * Sets a hostname string for the GPU device. This operation takes effect immediately.
+ *
+ * The hostname is not stored persistently across GPU resets or driver reloads.
+ *
+ * @param device                               The identifier of the target device
+ * @param hostname                             Reference to the caller-provided \ref nvmlHostname_v1_t struct containing the hostname
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                          if the hostname was set successfully
+ *         - \ref NVML_ERROR_UNINITIALIZED              if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT           if \a device is invalid or \a hostname is NULL or contains invalid characters
+ *         - \ref NVML_ERROR_NOT_SUPPORTED              if the device does not support this feature
+ *         - \ref NVML_ERROR_NO_PERMISSION              if the user doesn't have permission to perform this operation
+ *         - \ref NVML_ERROR_GPU_IS_LOST                if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN                    on any unexpected error
+ *
+ * @see nvmlDeviceGetHostname_v1()
+ */
+nvmlReturn_t DECLDIR nvmlDeviceSetHostname_v1(nvmlDevice_t device, nvmlHostname_v1_t *hostname);
+
+/**
+ * Get the hostname for the device.
+ *
+ * For Blackwell &tm; or newer fully supported devices.
+ * Supported on Linux only.
+ *
+ * Retrieves the hostname string for the GPU device that was set using \ref nvmlDeviceSetHostname_v1().
+ *
+ * @param device                               The identifier of the target device
+ * @param hostname                             Reference to the caller-provided \ref nvmlHostname_v1_t struct to return the hostname
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                          if the hostname was retrieved successfully
+ *         - \ref NVML_ERROR_UNINITIALIZED              if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT           if \a device is invalid or \a hostname is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED              if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST                if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN                    on any unexpected error
+ *
+ * @see nvmlDeviceSetHostname_v1()
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetHostname_v1(nvmlDevice_t device, nvmlHostname_v1_t *hostname);
 
 /** @} */
 
