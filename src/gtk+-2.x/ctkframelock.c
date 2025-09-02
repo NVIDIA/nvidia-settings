@@ -413,8 +413,13 @@ static void framelock_state_received(GObject *object, CtrlEvent *event,
 static void select_widget(GtkWidget *widget, gint state)
 {
     GtkStyle *style = gtk_widget_get_style(widget);
+    GdkColor color;
+    gdk_color_parse ("black", &color);
+
     gtk_widget_modify_fg(widget, GTK_STATE_NORMAL, &(style->text[state]));
     gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &(style->base[state]));
+    // modify text to be black
+    gtk_widget_modify_fg(widget, GTK_STATE_NORMAL, &color);
 }
 
 
