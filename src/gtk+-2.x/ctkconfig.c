@@ -24,6 +24,7 @@
  */
 
 #include "ctkconfig.h"
+#include "command-line.h"
 #include "ctkhelp.h"
 #include "ctkwindow.h"
 #include "ctkutils.h"
@@ -305,12 +306,14 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
     CtkWindow *ctk_window =
         CTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config)));
 
+    char *default_rc_file = locate_default_rc_file();
+
     filename =
         ctk_get_filename_from_dialog("Please select a file to save to.",
                                      GTK_WINDOW(ctk_window),
                                      ctk_config->rc_filename ?
                                          ctk_config->rc_filename :
-                                         DEFAULT_RC_FILE);
+                                         default_rc_file);
 
     if (!filename) {
         return;
