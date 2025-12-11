@@ -2733,7 +2733,98 @@ typedef nvmlVgpuCreatablePlacementInfo_v1_t nvmlVgpuCreatablePlacementInfo_t;
 #define NVML_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN  271 //!< Throttling due to external power brake assertion trigger (reducing core clocks by a factor of 2 or more) in ns
 #define NVML_FI_DEV_POWER_SYNC_BALANCING_FREQ                    272 //!< Accumulated frequency of the GPU to be used for averaging
 #define NVML_FI_DEV_POWER_SYNC_BALANCING_AF                      273 //!< Accumulated activity factor of the GPU to be used for averaging
-#define NVML_FI_MAX                                              274 //!< One greater than the largest field ID defined above
+
+/**
+ * Current primary power floor value in Watts.
+ * This value is calculated by doing "TMP ceiling value * (% TMP floor value)".
+ */
+#define NVML_FI_PWR_SMOOTHING_PRIMARY_POWER_FLOOR                       275
+/**
+ * Current secondary power floor value in Watts.
+ * This is the power floor that is applied during active workload periods on the GPU when primary
+ * floor activation window multiplier is set to a non-zero value.
+ */
+#define NVML_FI_PWR_SMOOTHING_SECONDARY_POWER_FLOOR                     276
+/**
+ * Minimum primary floor activation offset value in Watts.
+ * This is the minimum primary floor activation offset accepted by the driver specified in Watts.
+ * This is a static field.
+ */
+#define NVML_FI_PWR_SMOOTHING_MIN_PRIMARY_FLOOR_ACT_OFFSET              277
+/**
+ * Minimum primary floor activation point value in Watts.
+ * This is the minimum absolute raw value specified in Watts that the driver will use for switching
+ * between primary and secondary floor. This point is calculated as "secondary power floor +
+ * primary floor activation offset", and then computed value is floored to "min primary floor
+ * activation point" by the driver at run time. This value is used to avoid setting of switch point
+ * too low accidentally.
+ */
+#define NVML_FI_PWR_SMOOTHING_MIN_PRIMARY_FLOOR_ACT_POINT               278
+/**
+ * Window Multiplier value in ms.
+ * This is the multiplier unit specified in ms for other multipliers in the profile (primary floor
+ * activation window multiplier and primary floor target window multiplier). This is a static field.
+ */
+#define NVML_FI_PWR_SMOOTHING_WINDOW_MULTIPLIER                         279
+/**
+ * Support (0/Not Supported or 1/Supported) for delayed power smoothing.
+ */
+#define NVML_FI_PWR_SMOOTHING_DELAYED_PWR_SMOOTHING_SUPPORTED           280
+/**
+ * Current secondary power floor value in Watts for a given profile.
+ * This is the power floor that will be applied during active workload periods on the GPU when
+ * primary floor activation window multiplier is set to a non-zero value.
+ */
+#define NVML_FI_PWR_SMOOTHING_PROFILE_SECONDARY_POWER_FLOOR             281
+/**
+ * Current primary floor activation window multiplier value for a given profile.
+ * This is the "X" ms time multiplier for the activation moving average window size. The activation
+ * moving average is compared against the (secondary floor + primary floor activation offset value)
+ * to determine if the controller should switch from the secondary floor to the primary floor.
+ * Setting this to 0 will disable switching to the secondary floor.
+ */
+#define NVML_FI_PWR_SMOOTHING_PROFILE_PRIMARY_FLOOR_ACT_WIN_MULT        282
+/**
+ * Current primary floor target window multiplier value for a given profile.
+ * This is the "X" ms time multiplier for the target moving average window size. When set to
+ * non-zero value, the target moving average power determines the primary floor. When set to 0,
+ * driver will use the Floor percentage instead to derive the primary floor.
+ */
+#define NVML_FI_PWR_SMOOTHING_PROFILE_PRIMARY_FLOOR_TAR_WIN_MULT        283
+/**
+ * Current primary floor activation offset value in Watts for a given profile.
+ * If the target moving average falls below the secondary floor plus this offset, the primary floor
+ * will be activated.
+ */
+#define NVML_FI_PWR_SMOOTHING_PROFILE_PRIMARY_FLOOR_ACT_OFFSET          284
+/**
+ * Current secondary power floor value in Watts for admin override.
+ * This is the power floor that will be applied during active workload periods on the GPU when
+ * primary floor activation window multiplier is set to a non-zero value.
+ */
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_SECONDARY_POWER_FLOOR      285
+/**
+ * Current primary floor activation window multiplier value for admin override.
+ * This is the "X" ms time multiplier for the activation moving average window size. The activation
+ * moving average is compared against the (secondary floor + primary floor activation offset value)
+ * to determine if the controller should switch from the secondary floor to the primary floor.
+ * Setting this to 0 will disable switching to the secondary floor.
+ */
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PRIMARY_FLOOR_ACT_WIN_MULT 286
+/**
+ * Current primary floor target window multiplier value for admin override.
+ * This is the "X" ms time multiplier for the target moving average window size. When set to
+ * non-zero value, the target moving average power determines the primary floor. When set to 0,
+ * driver will use the Floor percentage instead to derive the primary floor.
+ */
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PRIMARY_FLOOR_TAR_WIN_MULT 287
+/**
+ * Current primary floor activation offset value in Watts for admin override.
+ * If the target moving average falls below the secondary floor plus this offset, the primary floor
+ * will be activated.
+ */
+#define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PRIMARY_FLOOR_ACT_OFFSET   288
+#define NVML_FI_MAX                                              289 //!< One greater than the largest field ID defined above
 
 /**
  * NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS
@@ -3698,8 +3789,9 @@ typedef nvmlGpuFabricInfo_v3_t nvmlGpuFabricInfoV_t;
  */
 /***************************************************************************************************/
 
-#define NVML_INIT_FLAG_NO_GPUS      1   //!< Don't fail nvmlInit() when no GPUs are found
-#define NVML_INIT_FLAG_NO_ATTACH    2   //!< Don't attach GPUs
+#define NVML_INIT_FLAG_NO_GPUS      (1 << 0)   //!< Don't fail nvmlInit() when no GPUs are found
+#define NVML_INIT_FLAG_NO_ATTACH    (1 << 1)   //!< Don't attach GPUs
+#define NVML_INIT_FLAG_FORCE_INIT   (1 << 2)   //!< Force GPU initialization when a previous nvmlInit was called with NO_GPUS and NO_ATTACH flags
 
 /**
  * Initialize NVML, but don't initialize any GPUs yet.
@@ -13483,16 +13575,28 @@ nvmlReturn_t DECLDIR nvmlDeviceWorkloadPowerProfileClearRequestedProfiles(nvmlDe
  *  @{
  */
 /***************************************************************************************************/
+/**
+ * Macro for accomodating the gap in field values for delayed power smoothing.
+ */
 #define NVML_POWER_SMOOTHING_IDX_FROM_FIELD_VAL(field_val)  \
- (field_val - NVML_FI_PWR_SMOOTHING_ENABLED)
+    ( \
+        (field_val > NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_HYST_VAL) ? \
+        (field_val - NVML_FI_PWR_SMOOTHING_ENABLED - \
+            (NVML_FI_PWR_SMOOTHING_PRIMARY_POWER_FLOOR - NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_RAMP_DOWN_HYST_VAL - 1)) : \
+        (field_val - NVML_FI_PWR_SMOOTHING_ENABLED) \
+    ) //!< Index from field value.
 
-#define NVML_POWER_SMOOTHING_MAX_NUM_PROFILES                   5
-#define NVML_POWER_SMOOTHING_NUM_PROFILE_PARAMS                 4
-#define NVML_POWER_SMOOTHING_ADMIN_OVERRIDE_NOT_SET             0xFFFFFFFFU
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PERCENT_TMP_FLOOR    0
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE         1
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_RATE       2
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_HYSTERESIS 3
+#define NVML_POWER_SMOOTHING_MAX_NUM_PROFILES                   5 //!< Maximum number of profiles.
+#define NVML_POWER_SMOOTHING_NUM_PROFILE_PARAMS                 8 //!< Number of profile parameters.
+#define NVML_POWER_SMOOTHING_ADMIN_OVERRIDE_NOT_SET             0xFFFFFFFFU //!< Admin override not set.
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PERCENT_TMP_FLOOR    0 //!< Percent temperature floor.
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE         1 //!< Ramp up rate.
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_RATE       2 //!< Ramp down rate.
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_HYSTERESIS 3 //!< Ramp down hysteresis.
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_SECONDARY_POWER_FLOOR      4 //!< Secondary power floor value in Watts for a given profile
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_WIN_MULT 5 //!< Primary floor activation window multiplier value for a given profile
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_TAR_WIN_MULT 6 //!< Primary floor target window multiplier value for a given profile
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_OFFSET   7 //!< Primary floor activation offset value in Watts for a given profile
 
 /**
  * Power Smoothing Structure for Profile information
