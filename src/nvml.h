@@ -3701,9 +3701,20 @@ typedef struct
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INSUFFICIENT_NVLINKS 5 //!< Fabric Health Mask: Incorrect Configuration - Insufficient Nvlinks
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INCOMPATIBLE_GPU_FW  6 //!< Fabric Health Mask: Incorrect Configuration - Incompatible GPU Firmware
 #define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_INVALID_LOCATION     7 //!< Fabric Health Mask: Incorrect Configuration - Invalid Location
+#define NVML_GPU_FABRIC_HEALTH_MASK_INCORRECT_CONFIGURATION_GPU_STATE_INVALID    8 //!< Fabric Health Mask: Incorrect Configuration - GPU State Invalid
 
 #define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_INCORRECT_CONFIGURATION 8                //!< Fabric Health Mask Bit Shift for Incorrect Configuration
 #define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_INCORRECT_CONFIGURATION 0xf              //!< Fabric Health Mask Width for Incorrect Configuration
+
+/**
+ * Fabric Partition Assigned
+ */
+#define NVML_GPU_FABRIC_HEALTH_MASK_PARTITION_ASSIGNED_NOT_SUPPORTED 0 //!< Fabric Health Mask: Partition Assigned not supported
+#define NVML_GPU_FABRIC_HEALTH_MASK_PARTITION_ASSIGNED_TRUE          1 //!< Fabric Health Mask: Partition is Assigned
+#define NVML_GPU_FABRIC_HEALTH_MASK_PARTITION_ASSIGNED_FALSE         2 //!< Fabric Health Mask: Partition is not Assigned
+
+#define NVML_GPU_FABRIC_HEALTH_MASK_SHIFT_PARTITION_ASSIGNED 12        //!< Fabric Health Mask Bit Shift for Partition Assigned
+#define NVML_GPU_FABRIC_HEALTH_MASK_WIDTH_PARTITION_ASSIGNED 0x3       //!< Fabric Health Mask Width for Partition Assigned
 
 /**
  * Fabric Health
