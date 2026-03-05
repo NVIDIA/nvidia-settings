@@ -76,7 +76,7 @@ struct _CtkManageGridLicense
     char            productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];  // vGPU product name fetched from nvml corresponding to the feature type '4'
     int             licenseStatus;                                      // Current license status to be displayed on UI
     int             prevLicenseState;                                   // The previous license state
-    gboolean        isvComputeSupported;                                // Check if 'NVIDIA Virtual Compute Server' feature is supported
+    gboolean        isvComputeSupported;                                // Check if 'NVIDIA vGPU for Compute' feature is supported
     gboolean        isvWSSupported;                                     // Check if 'NVIDIA RTX Virtual Workstation' feature is supported
     char            licenseExpiry[GRID_LICENSE_INFO_MAX_LENGTH];        // License expiry timestamp
 };

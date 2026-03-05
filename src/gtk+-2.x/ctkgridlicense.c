@@ -50,16 +50,16 @@
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage License page to obtain licenses "
-"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA Virtual Compute Server on supported Tesla products. "
+"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA vGPU for Compute on supported Tesla products. "
 "The current license status is displayed on the page. If licensed, the license expiry information in GMT time zone is shown.";
 static const char * __manage_grid_licenses_vcompute_help =
 "Use the Manage License page to obtain licenses "
-"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA Virtual Compute Server on supported Tesla products. "
+"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA vGPU for Compute on supported Tesla products. "
 "The current license status is displayed on the page. If licensed, the license expiry information in GMT time zone is shown.";
 static const char * __grid_virtual_workstation_help =
 "Select this option to enable NVIDIA RTX Virtual Workstation license.";
 static const char * __grid_virtual_compute_help =
-"Select this option to enable NVIDIA Virtual Compute Server license.";
+"Select this option to enable NVIDIA vGPU for Compute license.";
 static const char * __grid_vapp_help =
 "Select this option to disable the NVIDIA RTX Virtual Workstation license.";
 static const char * __license_edition_help =

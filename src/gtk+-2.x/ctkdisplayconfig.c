@@ -8784,6 +8784,9 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     if (ctk_object->apply_possible && clear_apply) {
         gtk_widget_set_sensitive(widget, False);
         ctk_object->forced_reset_allowed = TRUE;
+
+        ctk_object->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG;
     }
 
     /* XXX Run the GTK main loop to flush any pending layout events
