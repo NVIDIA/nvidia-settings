@@ -2824,7 +2824,9 @@ typedef nvmlVgpuCreatablePlacementInfo_v1_t nvmlVgpuCreatablePlacementInfo_t;
  * will be activated.
  */
 #define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PRIMARY_FLOOR_ACT_OFFSET   288
-#define NVML_FI_MAX                                              289 //!< One greater than the largest field ID defined above
+#define NVML_FI_DEV_NVLINK_PLR_XMIT_BLOCKS                       294 //!< NVLINK PLR Xmit Blocks
+#define NVML_FI_DEV_NVLINK_PLR_XMIT_RETRY_BLOCKS                 295 //!< NVLINK PLR Xmit Retry Blocks
+#define NVML_FI_MAX                                              296 //!< One greater than the largest field ID defined above
 
 /**
  * NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS
