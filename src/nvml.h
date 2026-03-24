@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2025 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2026 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -1995,13 +1995,13 @@ typedef union
 {
     struct
     {
-        unsigned int    avgFactor;          //!< Average factor in compensating the timeslice for Adaptive Round Robin mode
-        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise
+        unsigned int    avgFactor;          //!< Average factor in compensating the timeslice for Adaptive Round Robin mode. 0 when there is no active scheduling
+        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise. 0 when there is no active scheduling
     } vgpuSchedDataWithARR;
 
     struct
     {
-        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise
+        unsigned int    timeslice;          //!< The timeslice in ns for each software run list as configured, or the default value otherwise. 0 when there is no active scheduling
     } vgpuSchedData;
 
 } nvmlVgpuSchedulerParams_t;
@@ -2265,8 +2265,8 @@ typedef struct
 {
     unsigned int    engineId;            //!< IN:  Engine whose software scheduler state info is fetched. One of NVML_VGPU_SCHEDULER_ENGINE_TYPE_*.
     unsigned int    schedulerPolicy;     //!< OUT: Scheduler policy
-    unsigned int    avgFactor;           //!< OUT: Average factor in compensating the timeslice for Adaptive Round Robin mode
-    unsigned int    timeslice;           //!< OUT: The timeslice in ns for each software run list as configured, or the default value otherwise
+    unsigned int    avgFactor;           //!< OUT: Average factor in compensating the timeslice for Adaptive Round Robin mode. 0 when there is no active scheduling
+    unsigned int    timeslice;           //!< OUT: The timeslice in ns for each software run list as configured, or the default value otherwise. 0 when there is no active scheduling
 } nvmlVgpuSchedulerStateInfo_v2_t;
 
 /**
@@ -2290,8 +2290,8 @@ typedef struct
 {
     unsigned int                   engineId;                                      //!< IN: Engine whose software runlist log entries are fetched. One of One of NVML_VGPU_SCHEDULER_ENGINE_TYPE_*.
     unsigned int                   schedulerPolicy;                               //!< OUT: Scheduler policy
-    unsigned int                   avgFactor;                                     //!< OUT: Average factor in compensating the timeslice for Adaptive Round Robin mode
-    unsigned int                   timeslice;                                     //!< OUT: The timeslice in ns for each software run list as configured, or the default value otherwise
+    unsigned int                   avgFactor;                                     //!< OUT: Average factor in compensating the timeslice for Adaptive Round Robin mode. 0 when there is no active scheduling
+    unsigned int                   timeslice;                                     //!< OUT: The timeslice in ns for each software run list as configured, or the default value otherwise. 0 when there is no active scheduling
     unsigned int                   entriesCount;                                  //!< OUT: Count of log entries fetched
     nvmlVgpuSchedulerLogEntry_v2_t logEntries[NVML_SCHEDULER_SW_MAX_LOG_ENTRIES]; //!< OUT: Structure to store the state and logs of a software runlist
 } nvmlVgpuSchedulerLogInfo_v2_t;
@@ -12302,7 +12302,8 @@ nvmlReturn_t DECLDIR nvmlDeviceReadPRMCounters_v1(nvmlDevice_t device, nvmlPRMCo
 // Allocation of instance of this profile prevents allocation of
 // all but _NO_ME profiles.
 #define NVML_GPU_INSTANCE_PROFILE_2_SLICE_ALL_ME   0x10
-#define NVML_GPU_INSTANCE_PROFILE_COUNT            0x11
+#define NVML_GPU_INSTANCE_PROFILE_3_SLICE_GFX      0x11    //!< 3_SLICE gfx + media capable profile.
+#define NVML_GPU_INSTANCE_PROFILE_COUNT            0x12    //!< Total number of GPU instance profiles.
 
 /**
  * MIG GPU instance profile capability.
