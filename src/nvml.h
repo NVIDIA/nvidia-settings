@@ -1484,6 +1484,16 @@ typedef struct
 typedef nvmlEccSramUniqueUncorrectedErrorCounts_v1_t nvmlEccSramUniqueUncorrectedErrorCounts_t;
 #define nvmlEccSramUniqueUncorrectedErrorCounts_v1 NVML_STRUCT_VERSION(EccSramUniqueUncorrectedErrorCounts, 1) //!< Version macro for \a nvmlEccSramUniqueUncorrectedErrorCounts_v1_t
 
+typedef struct nvmlRemappedRowsInfo_v2_t
+{
+    unsigned int corrActiveRemaps;      //!< Number of active row remappings due to correctable errors
+    unsigned int corrInactiveRemaps;    //!< Number of inactive row remappings due to correctable errors
+    unsigned int uncActiveRemaps;       //!< Number of active row remappings due to uncorrectable errors
+    unsigned int uncInactiveRemaps;     //!< Number of inactive row remappings due to uncorrectable errors
+    unsigned int bPending;              //!< Whether or not there is any pending row remapping; 0 indicates not pending, 1 indicates pending
+    unsigned int bFailureOccurred;      //!< Whether or not there's any row remapping failure in the past; 0 indicates no failure, 1 indicates failure occurred
+} nvmlRemappedRowsInfo_v2_t;
+
 #define NVML_RUSD_POLL_NONE        0x0                   //!< Disable RUSD polling on all metric groups
 #define NVML_RUSD_POLL_CLOCK       0x1                   //!< Enable RUSD polling on clock group
 #define NVML_RUSD_POLL_PERF        0x2                   //!< Enable RUSD polling on performance group
@@ -2909,7 +2919,10 @@ typedef struct
 #define NVML_FI_DEV_NVLINK_COUNT_RAW_BER_V2                      293 //!< NVLINK total raw BER
 #define NVML_FI_DEV_NVLINK_PLR_XMIT_BLOCKS                       294 //!< NVLINK PLR Xmit Blocks
 #define NVML_FI_DEV_NVLINK_PLR_XMIT_RETRY_BLOCKS                 295 //!< NVLINK PLR Xmit Retry Blocks
-#define NVML_FI_MAX                                              296 //!< One greater than the largest field ID defined above
+
+#define NVML_FI_DEV_REMAPPED_ROWS_COR_INACTIVE                  301 //!< Number of inactive row remappings due to correctable errors
+#define NVML_FI_DEV_REMAPPED_ROWS_UNC_INACTIVE                  302 //!< Number of inactive row remappings due to uncorrectable errors
+#define NVML_FI_MAX                                             303 //!< One greater than the largest field ID defined above
 
 /**
  * NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS
@@ -14146,6 +14159,25 @@ nvmlReturn_t  DECLDIR nvmlDevicePowerSmoothingSetState(nvmlDevice_t device,
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSramUniqueUncorrectedEccErrorCounts(nvmlDevice_t device,
                                                                       nvmlEccSramUniqueUncorrectedErrorCounts_t *errorCounts);
+
+/**
+ * Get the status of row remapper.
+ *
+ * @note On MIG-enabled GPUs with active instances, querying the number of
+ * remapped rows is not supported
+ *
+ * For Ampere &tm; or newer fully supported devices.
+ *
+ * @param device                               The identifier of the target device
+ * @param info                                 Reference for \a nvmlRemappedRowsInfo_v2_t
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 Upon success
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a info is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     If MIG is enabled or if the device doesn't support this feature
+ *         - \ref NVML_ERROR_UNKNOWN           Unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetRemappedRows_v2(nvmlDevice_t device, nvmlRemappedRowsInfo_v2_t *info);
 
 /**
  * Set Read-only user shared data (RUSD) settings for GPU.
