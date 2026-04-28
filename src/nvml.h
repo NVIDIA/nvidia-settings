@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2025 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2026 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -403,6 +403,14 @@ typedef struct
 typedef nvmlRepairStatus_v1_t nvmlRepairStatus_t;
 
 #define nvmlRepairStatus_v1 NVML_STRUCT_VERSION(RepairStatus, 1)
+
+/**
+ * Struct to represent the NVML unrepairable memory status
+ */
+typedef struct
+{
+   unsigned int bUnrepairableMemory;    //!< Reference to \a unsigned int
+} nvmlUnrepairableMemoryStatus_v1_t;
 
 /**
  * Possible values that classify the remap availability for each bank. The max
@@ -1478,6 +1486,16 @@ typedef struct
 
 typedef nvmlEccSramUniqueUncorrectedErrorCounts_v1_t nvmlEccSramUniqueUncorrectedErrorCounts_t;
 #define nvmlEccSramUniqueUncorrectedErrorCounts_v1 NVML_STRUCT_VERSION(EccSramUniqueUncorrectedErrorCounts, 1)
+
+typedef struct nvmlRemappedRowsInfo_v2_t
+{
+    unsigned int corrActiveRemaps;      //!< Number of active row remappings due to correctable errors
+    unsigned int corrInactiveRemaps;    //!< Number of inactive row remappings due to correctable errors
+    unsigned int uncActiveRemaps;       //!< Number of active row remappings due to uncorrectable errors
+    unsigned int uncInactiveRemaps;     //!< Number of inactive row remappings due to uncorrectable errors
+    unsigned int bPending;              //!< Whether or not there is any pending row remapping; 0 indicates not pending, 1 indicates pending
+    unsigned int bFailureOccurred;      //!< Whether or not there's any row remapping failure in the past; 0 indicates no failure, 1 indicates failure occurred
+} nvmlRemappedRowsInfo_v2_t;
 
 /**
  * GSP firmware
@@ -2826,7 +2844,10 @@ typedef nvmlVgpuCreatablePlacementInfo_v1_t nvmlVgpuCreatablePlacementInfo_t;
 #define NVML_FI_PWR_SMOOTHING_ADMIN_OVERRIDE_PRIMARY_FLOOR_ACT_OFFSET   288
 #define NVML_FI_DEV_NVLINK_PLR_XMIT_BLOCKS                       294 //!< NVLINK PLR Xmit Blocks
 #define NVML_FI_DEV_NVLINK_PLR_XMIT_RETRY_BLOCKS                 295 //!< NVLINK PLR Xmit Retry Blocks
-#define NVML_FI_MAX                                              296 //!< One greater than the largest field ID defined above
+
+#define NVML_FI_DEV_REMAPPED_ROWS_COR_INACTIVE                  301 //!< Number of inactive row remappings due to correctable errors
+#define NVML_FI_DEV_REMAPPED_ROWS_UNC_INACTIVE                  302 //!< Number of inactive row remappings due to uncorrectable errors
+#define NVML_FI_MAX                                             303 //!< One greater than the largest field ID defined above
 
 /**
  * NVML_FI_DEV_NVLINK_GET_POWER_THRESHOLD_UNITS
@@ -4837,6 +4858,24 @@ nvmlReturn_t DECLDIR nvmlDeviceGetAddressingMode(nvmlDevice_t device, nvmlDevice
  *         - \ref NVML_ERROR_UNKNOWN                    on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetRepairStatus(nvmlDevice_t device, nvmlRepairStatus_t *repairStatus);
+
+/**
+ * Get the unrepairable memory flag for a given GPU
+ *
+ * For Hopper &tm; or newer fully supported devices.
+ *
+ * @param[in] device                               The identifier of the target device
+ * @param[out] unrepairableMemoryStatus             Reference to \a nvmlUnrepairableMemoryStatus_v1_t
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                          if the query was successful
+ *         - \ref NVML_ERROR_ARGUMENT_VERSION_MISMATCH  if the provided version is invalid/unsupported
+ *         - \ref NVML_ERROR_UNINITIALIZED              if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT           if \a device is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED              if the device does not support this feature
+ *         - \ref NVML_ERROR_UNKNOWN                    on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetUnrepairableMemoryFlag_v1(nvmlDevice_t device, nvmlUnrepairableMemoryStatus_v1_t *unrepairableMemoryStatus);
 
 /**
  * Retrieve the common ancestor for two devices
@@ -13742,6 +13781,25 @@ nvmlReturn_t  DECLDIR nvmlDevicePowerSmoothingSetState(nvmlDevice_t device,
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSramUniqueUncorrectedEccErrorCounts(nvmlDevice_t device,
                                                                       nvmlEccSramUniqueUncorrectedErrorCounts_t *errorCounts);
+
+/**
+ * Get the status of row remapper.
+ *
+ * @note On MIG-enabled GPUs with active instances, querying the number of
+ * remapped rows is not supported
+ *
+ * For Ampere &tm; or newer fully supported devices.
+ *
+ * @param device                               The identifier of the target device
+ * @param info                                 Reference for \a nvmlRemappedRowsInfo_v2_t
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 Upon success
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a info is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     If MIG is enabled or if the device doesn't support this feature
+ *         - \ref NVML_ERROR_UNKNOWN           Unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetRemappedRows_v2(nvmlDevice_t device, nvmlRemappedRowsInfo_v2_t *info);
 
 /**
  * NVML API versioning support
