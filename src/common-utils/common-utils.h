@@ -64,6 +64,7 @@ char *nvasprintf(const char *fmt, ...) NV_ATTRIBUTE_PRINTF(1, 2);
 void nv_append_sprintf(char **buf, const char *fmt, ...) NV_ATTRIBUTE_PRINTF(2, 3);
 void nvfree(void *s);
 
+const char *get_user_home();
 char *tilde_expansion(const char *str);
 char *nv_prepend_to_string_list(char *list, const char *item, const char *delim);
 

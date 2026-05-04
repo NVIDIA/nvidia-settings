@@ -27,7 +27,6 @@
  */
 struct _CtrlSystemList;
 
-#define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 #define CONFIG_FILE_OPTION 1
 #define DISPLAY_OPTION 2
 
@@ -47,8 +46,8 @@ typedef struct {
     char *config;        /*
                           * The name of the configuration file (to be
                           * read from, and to be written to); defaults
-                          * to the value of the constant
-                          * DEFAULT_RC_FILE.
+                          * to $XDG_CONFIG_HOME/nvidia/settings-rc or
+                          * ~/.nvidia-settings-rc if the latter exists.
                           */
 
     char **assignments;  /*
@@ -124,7 +123,7 @@ typedef struct {
 
 } Options;
 
-
+const char *locate_default_rc_file(void);
 Options *parse_command_line(int argc, char *argv[],
                             struct _CtrlSystemList *systems);
 
