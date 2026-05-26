@@ -521,7 +521,6 @@ xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs)
 char *xconfigValidateComposite(XConfigPtr config,
                                GenerateOptions *gop,
                                int composite_specified,
-                               int xinerama_enabled,
                                int depth,
                                int overlay_enabled,
                                int cioverlay_enabled,
@@ -536,7 +535,6 @@ char *xconfigValidateComposite(XConfigPtr config,
         int value;
 
     } composite_incompatible_options[] = {
-        { "Xinerama", xinerama_enabled && !gop->xinerama_plus_composite_works },
         { "Overlay",  overlay_enabled },
         { "CIOverlay", cioverlay_enabled },
     };

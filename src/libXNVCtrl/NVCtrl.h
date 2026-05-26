@@ -92,10 +92,6 @@
  * F: The attribute may be queried using an NV_CTRL_TARGET_TYPE_FRAMELOCK
  *    target type via XNVCTRLQueryTargetAttribute().
  *
- * X: When Xinerama is enabled, this attribute is kept consistent across
- *    all Physical X Screens;  assignment of this attribute will be
- *    broadcast by the NVIDIA X Driver to all X Screens.
- *
  * I: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GVI target type
  *    via XNVCTRLQueryTargetAttribute().
  *
@@ -238,7 +234,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_SYNC_TO_VBLANK                                  9  /* RW-X */
+#define NV_CTRL_SYNC_TO_VBLANK                                  9  /* RW- */
 #define NV_CTRL_SYNC_TO_VBLANK_OFF                              0
 #define NV_CTRL_SYNC_TO_VBLANK_ON                               1
 
@@ -251,7 +247,7 @@
  * clients that are started after this setting is applied.
  */
 
-#define NV_CTRL_LOG_ANISO                                       10 /* RW-X */
+#define NV_CTRL_LOG_ANISO                                       10 /* RW- */
 
 
 /*
@@ -272,7 +268,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_FSAA_MODE                                       11 /* RW-X */
+#define NV_CTRL_FSAA_MODE                                       11 /* RW- */
 #define NV_CTRL_FSAA_MODE_NONE                                  0
 #define NV_CTRL_FSAA_MODE_2x                                    1
 #define NV_CTRL_FSAA_MODE_2x_5t                                 2
@@ -658,7 +654,7 @@
  * applied.
  */
 
-#define NV_CTRL_OPENGL_AA_LINE_GAMMA                            38 /* RW-X */
+#define NV_CTRL_OPENGL_AA_LINE_GAMMA                            38 /* RW- */
 #define NV_CTRL_OPENGL_AA_LINE_GAMMA_DISABLE                     0
 #define NV_CTRL_OPENGL_AA_LINE_GAMMA_ENABLE                      1
 
@@ -683,7 +679,7 @@
  * when possible; when FALSE, OpenGL will always swap by blitting.
  */
 
-#define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
+#define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW- */
 #define NV_CTRL_FLIPPING_ALLOWED_FALSE                           0
 #define NV_CTRL_FLIPPING_ALLOWED_TRUE                            1
 
@@ -710,7 +706,7 @@
  * the non-conformant behavior.
  */
 
-#define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW-X */
+#define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW- */
 #define NV_CTRL_TEXTURE_CLAMPING_EDGE                            0
 #define NV_CTRL_TEXTURE_CLAMPING_SPEC                            1
 
@@ -742,7 +738,7 @@
  * NV_CTRL_FSAA_MODE
  */
 
-#define NV_CTRL_FSAA_APPLICATION_CONTROLLED                     50  /* RW-X */
+#define NV_CTRL_FSAA_APPLICATION_CONTROLLED                     50  /* RW- */
 #define NV_CTRL_FSAA_APPLICATION_CONTROLLED_ENABLED              1
 #define NV_CTRL_FSAA_APPLICATION_CONTROLLED_DISABLED             0
 
@@ -754,7 +750,7 @@
  * NV_CTRL_LOG_ANISO
  */
 
-#define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED                51  /* RW-X */
+#define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED                51  /* RW- */
 #define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED_ENABLED         1
 #define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED_DISABLED        0
 
@@ -1493,7 +1489,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_IMAGE_SETTINGS                                  221 /* RW-X */
+#define NV_CTRL_IMAGE_SETTINGS                                  221 /* RW- */
 #define NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY                     0
 #define NV_CTRL_IMAGE_SETTINGS_QUALITY                          1
 #define NV_CTRL_IMAGE_SETTINGS_PERFORMANCE                      2
@@ -1502,6 +1498,9 @@
 
 /*
  * NV_CTRL_XINERAMA - return whether xinerama is enabled
+ *
+ * Xinerama is no longer supported by the NVIDIA X driver so this always returns
+ * NV_CTRL_XINERAMA_OFF.
  */
 
 #define NV_CTRL_XINERAMA                                        222 /* R--G */
@@ -1546,7 +1545,7 @@
  * NV_CTRL_SHOW_SLI_VISUAL_INDICATOR - not supported
  */
 
-#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR                       225  /* RW-X */
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR                       225  /* RW- */
 #define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_FALSE                   0
 #define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE                    1
 
@@ -1873,7 +1872,7 @@
  * set to NV_CTRL_FSAA_APPLICATION_CONTROLLED_ENABLED.
  */
 
-#define NV_CTRL_FSAA_APPLICATION_ENHANCED                       255  /* RW-X */
+#define NV_CTRL_FSAA_APPLICATION_ENHANCED                       255  /* RW- */
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_ENABLED                 1
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_DISABLED                0
 
@@ -2162,7 +2161,7 @@
  * OpenGL when NV_CTRL_OPENGL_AA_LINE_GAMMA is enabled
  */
 
-#define NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE                      281 /* RW-X */
+#define NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE                      281 /* RW- */
 
 
 /*
@@ -2190,7 +2189,7 @@
  * eyes of a stereo image are flipped.
  */
 
-#define NV_CTRL_STEREO_EYES_EXCHANGE                            292  /* RW-X */
+#define NV_CTRL_STEREO_EYES_EXCHANGE                            292  /* RW- */
 #define NV_CTRL_STEREO_EYES_EXCHANGE_OFF                          0
 #define NV_CTRL_STEREO_EYES_EXCHANGE_ON                           1
 
@@ -2248,7 +2247,7 @@
  * disabled.
  */
 
-#define NV_CTRL_PIXMAP_CACHE                                    298 /* RW-X */
+#define NV_CTRL_PIXMAP_CACHE                                    298 /* RW- */
 #define NV_CTRL_PIXMAP_CACHE_DISABLE                              0
 #define NV_CTRL_PIXMAP_CACHE_ENABLE                               1
 
@@ -2259,7 +2258,7 @@
  * allocating more memory for the cache.
  */
 
-#define NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB                   299 /* RW-X */
+#define NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB                   299 /* RW- */
 
 /*
  * NV_CTRL_IS_GVO_DISPLAY - returns whether or not a given display is an
@@ -2843,7 +2842,7 @@
 /*
  * NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR - not supported
  */
-#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR                  358  /* RW-X */
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR                  358  /* RW- */
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_FALSE              0
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_TRUE               1
 
@@ -2940,25 +2939,25 @@
 #define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES_ENABLE              1
 
 /*
- * NV_CTRL_DITHERING_DEPTH - Controls the dithering depth when
- * NV_CTRL_CURRENT_DITHERING is ENABLED.  Some displays connected
- * to the GPU via the DVI or LVDS interfaces cannot display the
- * full color range of ten bits per channel, so the GPU will
- * dither to either 6 or 8 bits per channel.
+ * NV_CTRL_DITHERING_DEPTH - Controls the color depth when
+ * NV_CTRL_CURRENT_DITHERING is ENABLED. Will dither down to 6, 8, or 10 (if
+ * supported) bpc.
  */
 #define NV_CTRL_DITHERING_DEPTH                                 368 /* RWDG */
 #define NV_CTRL_DITHERING_DEPTH_AUTO                            0
 #define NV_CTRL_DITHERING_DEPTH_6_BITS                          1
 #define NV_CTRL_DITHERING_DEPTH_8_BITS                          2
+#define NV_CTRL_DITHERING_DEPTH_10_BITS                         3
 
 /*
- * NV_CTRL_CURRENT_DITHERING_DEPTH - Returns the current dithering
- * depth value.
+ * NV_CTRL_CURRENT_DITHERING_DEPTH - Returns the current dithering depth value.
+ * This currently corresponds to the bits per color displayed.
  */
 #define NV_CTRL_CURRENT_DITHERING_DEPTH                         369 /* R-DG */
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_NONE                    0
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_6_BITS                  1
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_8_BITS                  2
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_10_BITS                 3
 
 /*
  * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY - Returns the
@@ -3119,7 +3118,7 @@
  * NV_CTRL_FXAA - enables FXAA. A pixel shader based anti-  
  * aliasing method.
  */
-#define NV_CTRL_FXAA                                            390 /* RW-X */
+#define NV_CTRL_FXAA                                            390 /* RW- */
 #define NV_CTRL_FXAA_DISABLE                                    0
 #define NV_CTRL_FXAA_ENABLE                                     1
   
@@ -3280,7 +3279,7 @@
  * rate.
  */
 
-#define NV_CTRL_VRR_ALLOWED                                     408 /* RW-X */
+#define NV_CTRL_VRR_ALLOWED                                     408 /* RW- */
 #define NV_CTRL_VRR_ALLOWED_FALSE                                 0
 #define NV_CTRL_VRR_ALLOWED_TRUE                                  1
 
@@ -3388,7 +3387,7 @@
  * G-SYNC or G-SYNC Compatible is in use for full-screen applications.
  */
 
-#define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR                       416 /* RW-X */
+#define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR                       416 /* RW- */
 #define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_FALSE                   0
 #define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_TRUE                    1
 
@@ -3428,7 +3427,7 @@
  * complete rendering before swapping.
  */
 
-#define NV_CTRL_STEREO_SWAP_MODE                                418 /* RW-X */
+#define NV_CTRL_STEREO_SWAP_MODE                                418 /* RW- */
 #define NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL              0
 #define NV_CTRL_STEREO_SWAP_MODE_PER_EYE                          1
 #define NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR                     2
@@ -3536,7 +3535,7 @@
  * in use.
  */
 
-#define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR                       428 /* RW-X */
+#define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR                       428 /* RW- */
 #define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_FALSE                   0
 #define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_TRUE                    1
 
@@ -5063,8 +5062,7 @@
  * ATTRIBUTE_TYPE_GPU       - Attribute is valid for GPU target types.
  * ATTRIBUTE_TYPE_FRAMELOCK - Attribute is valid for Frame Lock target types.
  * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
- * ATTRIBUTE_TYPE_XINERAMA  - Attribute will be made consistent for all
- *                            X Screens when the Xinerama extension is enabled.
+ * ATTRIBUTE_TYPE_XINERAMA  - No longer used.
  * ATTRIBUTE_TYPE_VCSC      - Attribute is valid for Visual Computing System
  *                            target types (deprecated).
  * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
@@ -5095,7 +5093,7 @@
 #define ATTRIBUTE_TYPE_GPU        0x008
 #define ATTRIBUTE_TYPE_FRAMELOCK  0x010
 #define ATTRIBUTE_TYPE_X_SCREEN   0x020
-#define ATTRIBUTE_TYPE_XINERAMA   0x040
+#define ATTRIBUTE_TYPE_XINERAMA   0x040 /* not supported */
 #define ATTRIBUTE_TYPE_VCSC       0x080
 #define ATTRIBUTE_TYPE_GVI        0x100
 #define ATTRIBUTE_TYPE_COOLER     0x200

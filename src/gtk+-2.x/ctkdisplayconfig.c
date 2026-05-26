@@ -105,7 +105,6 @@ static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data
 
 static void setup_prime_display_page(CtkDisplayConfig *ctk_object);
 
-static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
 static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void save_clicked(GtkWidget *widget, gpointer user_data);
@@ -181,11 +180,6 @@ static int __position_table[] = { CONF_ADJ_ABSOLUTE,
 
 static const char * __layout_hidden_label_help =
 "To select a display, use the \"Selection\" dropdown menu.";
-
-static const char * __layout_xinerama_button_help =
-"The Enable Xinerama checkbox enables the Xinerama X extension; changing "
-"this option will require restarting your X server.  Note that when Xinerama "
-"is enabled, resolution changes will also require restarting your X server.";
 
 static const char * __selected_item_help =
 "The Selection drop-down allows you to pick which X screen or display device "
@@ -425,28 +419,6 @@ static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 
 
 
-/** layout_supports_depth_30() ***************************************
- *
- * Returns TRUE if all the screens in the layout are driven by GPUs
- * that support depth 30.
- *
- **/
-
-static gboolean layout_supports_depth_30(nvLayoutPtr layout)
-{
-    nvScreenPtr screen;
-
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        if (!screen->allow_depth_30) {
-            return FALSE;
-        }
-    }
-    return TRUE;
-
-} /* layout_supports_depth_30() */
-
-
-
 /** register_layout_events() *****************************************
  *
  * Registers to display-configuration related events relating to all
@@ -562,48 +534,6 @@ static void unregister_layout_events(CtkDisplayConfig *ctk_object)
     }
 
 } /* unregister_layout_events() */
-
-
-
-/** consolidate_xinerama() *******************************************
- *
- * Ensures that all X screens have the same depth if Xinerama is
- * enabled.
- *
- **/
-
-static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
-                                 nvScreenPtr screen)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr other;
-
-    if (!layout->xinerama_enabled) return;
-
-    /* If no screen was given, pick one */
-    if (!screen) {
-        screen = layout_get_a_screen(layout, NULL);
-    }
-    if (!screen) return;
-
-    /**
-     * Make sure all screens support depth 30, and if not,
-     * we should set depth 24.
-     **/
-
-    if ((screen->depth == 30) && (layout_supports_depth_30(layout) == FALSE)) {
-        screen->depth = 24;
-    }
-
-    /* If Xinerama is enabled, all screens must have the same depth. */
-    for (other = layout->screens; other; other = other->next_in_layout) {
-
-        if (other == screen) continue;
-
-        other->depth = screen->depth;
-    }
-
-} /* consolidate_xinerama() */
 
 
 
@@ -1488,9 +1418,6 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                                                     300, /* min width */
                                                     225); /* min height */
 
-    /* Make sure all X screens have the same depth if Xinerama is enabled */
-    consolidate_xinerama(ctk_object, NULL);
-
     /* Make sure we have some kind of positioning */
     assign_screen_positions(ctk_object);
 
@@ -1525,15 +1452,6 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_check_button_new_with_label("");
     g_signal_connect(G_OBJECT(ctk_object->chk_mosaic_enabled), "toggled",
                      G_CALLBACK(mosaic_state_toggled),
-                     (gpointer) ctk_object);
-
-    /* Xinerama button */
-    ctk_object->chk_xinerama_enabled =
-        gtk_check_button_new_with_label("Enable Xinerama");
-    ctk_config_set_tooltip(ctk_config, ctk_object->chk_xinerama_enabled,
-                           __layout_xinerama_button_help);
-    g_signal_connect(G_OBJECT(ctk_object->chk_xinerama_enabled), "toggled",
-                     G_CALLBACK(xinerama_state_toggled),
                      (gpointer) ctk_object);
 
     /* Selected display/X screen dropdown */
@@ -2012,10 +1930,6 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
         /* Mosaic checkbox */
         gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_mosaic_enabled,
-                           FALSE, FALSE, 0);
-
-        /* Xinerama checkbox */
-        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_xinerama_enabled,
                            FALSE, FALSE, 0);
 
         /* Mosaic configuration dialog button */
@@ -2581,9 +2495,6 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
         }
     }
 
-    ctk_help_heading(b, &i, "Enable Xinerama");
-    ctk_help_para(b, &i, "%s  This setting is only available when multiple "
-                  "X screens are present.", __layout_xinerama_button_help);
     ctk_help_heading(b, &i, "Selection");
     ctk_help_para(b, &i, "%s", __selected_item_help);
 
@@ -2809,7 +2720,6 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
 
 static void setup_layout_frame(CtkDisplayConfig *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
     GdkScreen *s;
 
     /*
@@ -2821,26 +2731,6 @@ static void setup_layout_frame(CtkDisplayConfig *ctk_object)
     screen_size_changed(s, ctk_object);
 
     setup_mosaic_config(ctk_object);
-
-    /* Xinerama requires 2 or more X screens */
-    if (layout->num_screens < 2) {
-        layout->xinerama_enabled = 0;
-        gtk_widget_hide(ctk_object->chk_xinerama_enabled);
-        return;
-    }
-    gtk_widget_show(ctk_object->chk_xinerama_enabled);
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->chk_xinerama_enabled),
-         G_CALLBACK(xinerama_state_toggled), (gpointer) ctk_object);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->chk_xinerama_enabled),
-         layout->xinerama_enabled);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->chk_xinerama_enabled),
-         G_CALLBACK(xinerama_state_toggled), (gpointer) ctk_object);
 
 } /* setup_layout_frame() */
 
@@ -4880,7 +4770,6 @@ static gboolean grow_screen_depth_table(CtkDisplayConfig *ctk_object)
 static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 {
     int cur_idx;
-    gboolean add_depth_30_option;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
@@ -4901,18 +4790,7 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
         (GTK_COMBO_BOX(ctk_object->mnu_screen_depth))));
 
-
-    /* If Xinerama is enabled, only allow depth 30 if all
-     * gpu/screens have support for depth 30.
-     */
-
-    if (ctk_object->layout->xinerama_enabled) {
-        add_depth_30_option = layout_supports_depth_30(screen->layout);
-    } else {
-        add_depth_30_option = screen->allow_depth_30;
-    }
-
-    if (add_depth_30_option) {
+    if (screen->allow_depth_30) {
 
         if (grow_screen_depth_table(ctk_object)) {
             ctk_combo_box_text_append_text
@@ -7429,8 +7307,6 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
     /* Update default screen depth in SMF using libscf functions */
     update_scf_depth(depth);
 
-    consolidate_xinerama(ctk_object, screen);
-
     /* Can't apply screen depth changes */
     ctk_object->apply_possible = FALSE;
 
@@ -7777,33 +7653,6 @@ static void screen_metamode_delete_clicked(GtkWidget *widget,
     user_changed_attributes(ctk_object);
 
 } /* screen_metamode_delete_clicked() */
-
-
-
-/** xinerama_state_toggled() *****************************************
- *
- * Called when user toggles the state of the "Enable Xinerama"
- * button.
- *
- **/
-
-static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-
-    ctk_object->layout->xinerama_enabled =
-        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    /* Can't dynamically enable Xinerama */
-    ctk_object->apply_possible = FALSE;
-
-    /* Make sure all screens have the same depth when Xinerama is enabled */
-    consolidate_xinerama(ctk_object, NULL);
-    setup_screen_page(ctk_object);
-
-    user_changed_attributes(ctk_object);
-    
-} /* xinerama_state_toggled() */
 
 
 
@@ -9527,11 +9376,6 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
         scrnum++;
     } while (screen);
 
-
-    /* Setup for Xinerama */
-    xconfigAddNewOption(&conf_layout->options, "Xinerama",
-                        (layout->xinerama_enabled ? "1" : "0"));
-
     layout->conf_layout = conf_layout;
     return TRUE;
 
@@ -9592,7 +9436,6 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
                 xconfigValidateComposite(config,
                                          &go,
                                          1, // composite_specified
-                                         layout->xinerama_enabled,
                                          screen->depth,
                                          screen->overlay && screen->hw_overlay,
                                          screen->overlay && !screen->hw_overlay,
@@ -9948,10 +9791,6 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
                                   ctk_object->layout);
 
     register_layout_events(ctk_object);
-
-
-    /* Make sure all X screens have the same depth if Xinerama is enabled */
-    consolidate_xinerama(ctk_object, NULL);
 
     /* Make sure X screens have some kind of position */
     assign_screen_positions(ctk_object);

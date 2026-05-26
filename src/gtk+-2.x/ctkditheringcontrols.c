@@ -101,7 +101,7 @@ static const char * __dithering_mode_help =
 "depending on the type of the display device.";
 
 static const char * __dithering_depth_help = 
-"The depth can be adjusted to 6 or 8 bits per channel depending on "
+"The depth can be adjusted to 6, 8, or 10 bits per channel depending on "
 "the type of display device.";
 
 GType ctk_dithering_controls_get_type(void)
@@ -316,6 +316,7 @@ GtkWidget* ctk_dithering_controls_new(CtrlTarget *ctrl_target,
     ctk_drop_down_menu_append_item(menu, "Auto", 0);
     ctk_drop_down_menu_append_item(menu, "6 bpc", 1);
     ctk_drop_down_menu_append_item(menu, "8 bpc", 2);
+    ctk_drop_down_menu_append_item(menu, "10 bpc", 3);
 
     ctk_dithering_controls->dithering_depth_menu = GTK_WIDGET(menu);
     
@@ -695,6 +696,10 @@ static Bool update_dithering_info(gpointer user_data)
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_depth_txt),
                            "8 bpc");
         break;
+    case NV_CTRL_CURRENT_DITHERING_DEPTH_10_BITS:
+        gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_depth_txt),
+                           "10 bpc");
+        break;
     default:
     case NV_CTRL_CURRENT_DITHERING_DEPTH_NONE:
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_depth_txt),
@@ -758,11 +763,12 @@ void post_dithering_depth_update(CtkDitheringControls *ctk_dithering_controls,
     static const char *dither_depth_table[] = {
         "Auto",  /* NV_CTRL_DITHERING_DEPTH_AUTO */
         "6 bpc", /* NV_CTRL_DITHERING_DEPTH_6_BITS */
-        "8 bpc"  /* NV_CTRL_DITHERING_DEPTH_8_BITS */
+        "8 bpc",  /* NV_CTRL_DITHERING_DEPTH_8_BITS */
+        "10 bpc"  /* NV_CTRL_DITHERING_DEPTH_10_BITS */
     };
 
     if (dithering_depth < NV_CTRL_DITHERING_DEPTH_AUTO ||
-        dithering_depth > NV_CTRL_DITHERING_DEPTH_8_BITS) {
+        dithering_depth > NV_CTRL_DITHERING_DEPTH_10_BITS) {
         return;
     }
 
@@ -1022,6 +1028,7 @@ static gint map_dithering_config_menu_idx_to_nvctrl(gint idx)
 static gint map_dithering_depth_menu_idx_to_nvctrl(gint idx)
 {
     switch (idx) {
+    case 3: return NV_CTRL_DITHERING_DEPTH_10_BITS;
     case 2: return NV_CTRL_DITHERING_DEPTH_8_BITS;
     case 1: return NV_CTRL_DITHERING_DEPTH_6_BITS;
     default: /* fallthrough; w/ warning? */

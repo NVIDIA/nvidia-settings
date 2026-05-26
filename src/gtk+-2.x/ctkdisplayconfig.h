@@ -93,7 +93,6 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *lbl_layout_warning;
     GtkWidget *chk_mosaic_enabled;
-    GtkWidget *chk_xinerama_enabled;
     GtkWidget *chk_primary_display;
     gboolean primary_display_changed;
 

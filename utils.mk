@@ -75,7 +75,6 @@ DEBUG                 ?=
 DEVELOP               ?=
 
 ifeq ($(DEBUG),1)
-  STRIP_CMD           ?= true
   DO_STRIP            ?=
   CFLAGS              += -O0 -g
   CFLAGS              += -DDEBUG=1
@@ -84,7 +83,6 @@ else
 endif
 
 ifeq ($(DEVELOP),1)
-  STRIP_CMD           ?= true
   DO_STRIP            ?=
   CFLAGS              += -DDEVELOP=1
 endif
@@ -92,7 +90,7 @@ endif
 CFLAGS                += $(EXTRA_CFLAGS)
 LDFLAGS               += $(EXTRA_LDFLAGS)
 
-STRIP_CMD             ?= strip
+STRIP                 ?= strip
 DO_STRIP              ?= 1
 
 INSTALL               ?= install
@@ -384,7 +382,7 @@ quiet_HOST_CXX     = $(call define_quiet_cmd,HOST_CXX    ,$<)
 quiet_LINK         = $(call define_quiet_cmd,LINK        ,$@)
 quiet_HOST_LINK    = $(call define_quiet_cmd,HOST_LINK   ,$@)
 quiet_M4           = $(call define_quiet_cmd,M4          ,$<)
-quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
+quiet_STRIP        = $(call define_quiet_cmd,STRIP       ,$@)
 quiet_HARDLINK     = $(call define_quiet_cmd,HARDLINK    ,$@)
 quiet_LD           = $(call define_quiet_cmd,LD          ,$@)
 quiet_OBJCOPY      = $(call define_quiet_cmd,OBJCOPY     ,$@)
@@ -502,6 +500,8 @@ define DEFINE_OBJECT_RULE
   $$(eval $$(call DEFINE_OBJECT_RULE_WITH_DIR,$(1),$(2),$(OUTPUTDIR)))
 endef
 
+_strip_args := --strip-unneeded -R .comment -R .GCC.command.line
+
 # This is a function that will generate rules to build
 # files with separate debug information, if so requested.
 # 
@@ -513,16 +513,20 @@ endef
 # generate a rule to build one from the unstripped binary.
 # If requested, it will also retain the unstripped binary.
 define DEBUG_INFO_RULES
-  $(1): $(1).unstripped
-  ifneq ($(or $(DO_STRIP),$(NV_SEPARATE_DEBUG_INFO)),)
-	$$(call quiet_cmd,STRIP_CMD) -o $$@ $$<
+  ifeq ($(NV_SEPARATE_DEBUG_INFO),1)
+    $(1): $(1).unstripped $(1).debug
   else
-	$$(call quiet_cmd,HARDLINK) $$^ $$@
+    $(1): $(1).unstripped
+  endif
+  ifneq ($(or $(DO_STRIP),$(NV_SEPARATE_DEBUG_INFO)),)
+	$$(call quiet_cmd,STRIP) $(_strip_args) -o $(1) $(1).unstripped
+  else
+	$$(call quiet_cmd,HARDLINK) $(1).unstripped $(1)
   endif
   ifeq ($(NV_SEPARATE_DEBUG_INFO),1)
+	$$(call quiet_cmd,OBJCOPY) --add-gnu-debuglink=$(strip $(1).debug) $(1)
     $(1).debug: $(1).unstripped
-	$$(call quiet_cmd,STRIP_CMD) --only-keep-debug -o $$@ $$<
-    $(1): $(1).debug
+	$$(call quiet_cmd,STRIP) --only-keep-debug -o $(1).debug $(1).unstripped
   endif
   ifneq ($(NV_KEEP_UNSTRIPPED_BINARIES),1)
     .INTERMEDIATE: $(1).unstripped

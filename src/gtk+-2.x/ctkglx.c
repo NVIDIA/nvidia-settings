@@ -2053,7 +2053,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
                     continue;
                 }
 
-                if (vkdp->phy_device_properties[device_num].deviceName) {
+                if (vkdp->phy_device_properties[device_num].deviceName[0]) {
                     device_name_str = nvasprintf("%s",
                         vkdp->phy_device_properties[device_num].deviceName);
                 } else {
@@ -2142,7 +2142,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
             }
 
 
-            if (vkdp->phy_device_properties[device_num].deviceName) {
+            if (vkdp->phy_device_properties[device_num].deviceName[0]) {
                 device_name_str = nvasprintf(" - %s",
                     vkdp->phy_device_properties[device_num].deviceName);
             } else {

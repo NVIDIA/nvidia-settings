@@ -425,7 +425,8 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
                                            unsigned int subsystems);
 
 ReturnStatus
-NvCtrlNvControlQueryTargetCount(const NvCtrlAttributePrivateHandle *, int,
+NvCtrlNvControlQueryTargetCount(const NvCtrlAttributePrivateHandle *,
+                                CtrlTargetType,
                                 int *);
 
 ReturnStatus NvCtrlNvControlGetAttribute(const NvCtrlAttributePrivateHandle *,

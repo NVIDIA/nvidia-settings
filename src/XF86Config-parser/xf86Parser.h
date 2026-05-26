@@ -773,7 +773,6 @@ void xconfigGetXServerInUse(GenerateOptions *gop);
 char *xconfigValidateComposite(XConfigPtr config,
                                GenerateOptions *gop,
                                int composite_enabled,
-                               int xinerama_enabled,
                                int depth,
                                int overlay_enabled,
                                int cioverlay_enabled,
