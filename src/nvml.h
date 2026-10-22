@@ -14023,10 +14023,10 @@ nvmlReturn_t DECLDIR nvmlDeviceWorkloadPowerProfileUpdateProfiles_v1(nvmlDevice_
 #define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE         1 //!< Ramp up rate.
 #define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_RATE       2 //!< Ramp down rate.
 #define NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_HYSTERESIS 3 //!< Ramp down hysteresis.
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_SECONDARY_POWER_FLOOR      4 //!< Secondary power floor value in Watts for a given profile
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_SECONDARY_POWER_FLOOR      4 //!< Secondary power floor value for a given profile
 #define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_WIN_MULT 5 //!< Primary floor activation window multiplier value for a given profile
 #define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_TAR_WIN_MULT 6 //!< Primary floor target window multiplier value for a given profile
-#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_OFFSET   7 //!< Primary floor activation offset value in Watts for a given profile
+#define NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_OFFSET   7 //!< Primary floor activation offset value for a given profile
 
 /**
  * Power Smoothing Structure for Profile information
@@ -14054,7 +14054,7 @@ typedef nvmlPowerSmoothingState_v1_t  nvmlPowerSmoothingState_t;
 #define nvmlPowerSmoothingState_v1 NVML_STRUCT_VERSION(PowerSmoothingState, 1) //!< Version macro for \a nvmlPowerSmoothingState_v1_t
 
 /**
- * Activiate a specific preset profile for datacenter power smoothing.
+ * Activate a specific preset profile for datacenter power smoothing.
  * The API only sets the active preset profile based on the input profileId,
  * and ignores the other parameters of the structure.
  * Requires root/admin permissions.
@@ -14083,9 +14083,13 @@ nvmlReturn_t DECLDIR nvmlDevicePowerSmoothingActivatePresetProfile(nvmlDevice_t 
  * For Blackwell &tm; or newer fully supported devices.
  *
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_PERCENT_TMP_FLOOR expects a value as a percentage from 00.00-100.00%
- * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE expects a value in W/s
- * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_RATE expects a value in W/s
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_UP_RATE expects a value in mW/s
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_RATE expects a value in mW/s
  * NVML_POWER_SMOOTHING_PROFILE_PARAM_RAMP_DOWN_HYSTERESIS expects a value in ms
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_SECONDARY_POWER_FLOOR expects a value in mW
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_WIN_MULT expects a value from 0-255
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_TAR_WIN_MULT expects a value from 0-255
+ * NVML_POWER_SMOOTHING_PROFILE_PARAM_PRIMARY_FLOOR_ACT_OFFSET expects a value in mW
  *
  * @param device                                      The identifier of the target device
  * @param profile                                     Reference to \ref nvmlPowerSmoothingProfile_v1_t struct
