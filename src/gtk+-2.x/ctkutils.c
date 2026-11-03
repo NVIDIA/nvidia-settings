@@ -928,7 +928,13 @@ GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end)
     GdkPixbuf *pixbuf = NULL;
     size_t size = end - start;
 
+    /* e.g. BANNER_ARTWORK_BLANK has no image data */
+    if (!start || !end || end <= start) {
+        return NULL;
+    }
+
 #ifdef CTK_GTK3
+  {
     GInputStream *stream =
         g_memory_input_stream_new_from_data(start, size, NULL);
 
@@ -937,6 +943,7 @@ GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end)
 
         g_object_unref(stream);
     }
+  }
 #else
     GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
 
