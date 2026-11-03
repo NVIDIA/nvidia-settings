@@ -18,6 +18,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <gdk/gdkx.h>
 #include "ctkui.h"
 #include "ctkwindow.h"
 #include "ctkutils.h"
@@ -27,9 +28,39 @@
  * that nvidia-settings.c doesn't need to include gtk+
  */
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
+/*
+ * GTK2's default X error handler terminates the process on any X error, on
+ * any Display connection.  nvidia-settings talks NV-CONTROL over its own
+ * Display connections and treats failed queries as "attribute not
+ * available" (e.g. X screen attributes queried on a GPU target when there is
+ * no NVIDIA X screen, as with PRIME render offload / reverse PRIME).  GTK3
+ * only handles errors on GDK's own connection; do the same for GTK2 so such
+ * errors are non-fatal.
+ */
+static XErrorHandler gdk_x_error_handler = NULL;
+
+static int ctk_x_error_handler(Display *dpy, XErrorEvent *error)
+{
+    GdkDisplay *gdpy = gdk_display_get_default();
+
+    if (gdpy && dpy != GDK_DISPLAY_XDISPLAY(gdpy)) {
+        return 0;
+    }
+    return gdk_x_error_handler ? gdk_x_error_handler(dpy, error) : 0;
+}
+#endif
+
 int ctk_init_check(int *argc, char **argv[])
 {
-    return gtk_init_check(argc, argv);
+    int ret = gtk_init_check(argc, argv);
+
+#if !GTK_CHECK_VERSION(3, 0, 0)
+    if (ret) {
+        gdk_x_error_handler = XSetErrorHandler(ctk_x_error_handler);
+    }
+#endif
+    return ret;
 }
 
 char *ctk_get_display(void)
