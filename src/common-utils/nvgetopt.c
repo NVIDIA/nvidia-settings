@@ -216,7 +216,13 @@ int nvgetopt(int argc,
         int appendedInteger = NVGETOPT_FALSE;
         if ((name[0] != '\0') && (name[1] != '\0')) {
             char *endptr;
-            strtol(name + 1, &endptr, 0);
+            /*
+             * Test parse the string starting at name+1; we'll interpret
+             * the string later, so we don't need to save the parsed
+             * value, now.  But, do enough to appease -Werror=unused-result.
+             */
+            long dummy = strtol(name + 1, &endptr, 0);
+            (void)dummy;
             if (*endptr == '\0') {
                 /*
                  * The only characters after the first character are

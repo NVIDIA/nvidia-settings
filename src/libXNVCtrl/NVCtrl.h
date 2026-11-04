@@ -4389,9 +4389,22 @@
  */
 #define NV_CTRL_STRING_MUX_STATE                                    57 /* RW--- */
 
+/*
+ * NV_CTRL_STRING_GPU_XRANDR_PROVIDER_NAME - Returns a RandR provider name
+ * associated with the given GPU.
+ *
+ * A GPU may be associated with zero or more X screens.  This attribute returns
+ * the RandR provider name for the first X screen associated with the GPU, if
+ * one exists.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using an NV_CTRL_TARGET_TYPE_GPU.
+ */
+#define NV_CTRL_STRING_GPU_XRANDR_PROVIDER_NAME                     58 /* R--G */
+
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_MUX_STATE
+    NV_CTRL_STRING_GPU_XRANDR_PROVIDER_NAME
 
 
 /**************************************************************************/

@@ -331,6 +331,7 @@ const AttributeTableEntry attributeTable[] = {
     { "3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                STR_ATTR, {0,0,1,1,0}, {}, "Returns the RF address of the glasses."},
     { "3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   STR_ATTR, {0,0,1,1,0}, {}, "Controls the name the glasses should use."},
 
+    { "XRandRProviderName",                           NV_CTRL_STRING_GPU_XRANDR_PROVIDER_NAME, STR_ATTR, {0,0,0,1,0}, {}, "Returns a RandR provider name associated with the given GPU."},
     /* Mux Control */
     { "MuxState",                                     NV_CTRL_STRING_MUX_STATE,         STR_ATTR, {0,0,0,1,0}, {}, "Controls whether the specified mux is configured to use the discrete or integrated GPU."},
     { "MuxAutoSwitch",                                NV_CTRL_MUX_AUTO_SWITCH,          INT_ATTR, {0,0,0,1,0}, {}, "Controls whether the specified mux switches automatically."},
@@ -365,7 +366,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_MUX_STATE
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_GPU_XRANDR_PROVIDER_NAME
 #warning "Have you forgotten to add a new string attribute to attributeTable?"
 #endif
 
