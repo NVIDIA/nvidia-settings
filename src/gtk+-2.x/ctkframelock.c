@@ -506,7 +506,9 @@ static GtkWidget *create_error_msg_dialog(CtkFramelock *ctk_framelock)
     pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_ERROR,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
-    g_object_unref(pixbuf);
+    if (pixbuf) {
+        g_object_unref(pixbuf);
+    }
     
     ctk_framelock->error_msg_label = gtk_label_new(NULL);
 
@@ -658,7 +660,9 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
     pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
-    g_object_unref(pixbuf);
+    if (pixbuf) {
+        g_object_unref(pixbuf);
+    }
 
     label = gtk_label_new("X Server:");
     descr = gtk_label_new("Please specify the X server to be added to the "
@@ -745,7 +749,9 @@ static GtkWidget *create_remove_devices_dialog(CtkFramelock *ctk_framelock)
     pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
-    g_object_unref(pixbuf);
+    if (pixbuf) {
+        g_object_unref(pixbuf);
+    }
 
     ctk_framelock->remove_devices_label = gtk_label_new(NULL);
     

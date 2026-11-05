@@ -36,6 +36,27 @@
 
 #include "nvml.h"
 
+/*
+ * The NVCPU_* macros are provided by NVIDIA's internal build system but not
+ * by the public makefiles; derive them from the compiler's predefined macros
+ * so NV_CTRL_ARCHITECTURE can be answered through NVML.  Without this the
+ * query falls through to NV-CONTROL, which rejects it for GPU targets.
+ */
+#if !defined(NVCPU_X86) && !defined(NVCPU_X86_64) && !defined(NVCPU_ARM) && \
+    !defined(NVCPU_AARCH64) && !defined(NVCPU_PPC64LE)
+# if defined(__x86_64__) || defined(__amd64__)
+#  define NVCPU_X86_64
+# elif defined(__i386__)
+#  define NVCPU_X86
+# elif defined(__aarch64__)
+#  define NVCPU_AARCH64
+# elif defined(__arm__)
+#  define NVCPU_ARM
+# elif defined(__powerpc64__) && defined(__LITTLE_ENDIAN__)
+#  define NVCPU_PPC64LE
+# endif
+#endif
+
 
 #define MAX_NVML_STR_LEN 64
 
