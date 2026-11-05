@@ -42,7 +42,7 @@ static const NVGetoptOption __options[] = {
     { "config", CONFIG_FILE_OPTION,
       NVGETOPT_STRING_ARGUMENT | NVGETOPT_HELP_ALWAYS, NULL,
       "Use the configuration file &CONFIG& rather than the "
-      "default &" DEFAULT_RC_FILE "&" },
+      "default &$XDG_CONFIG_HOME/nvidia/settings-rc&" },
 
     { "ctrl-display", 'c',
       NVGETOPT_STRING_ARGUMENT | NVGETOPT_HELP_ALWAYS, NULL,
