@@ -220,7 +220,7 @@ xconfigPrintFileSection (FILE * cf, XConfigFilesPtr ptr)
     if (ptr->modulepath)
     {
         s = ptr->modulepath;
-        p = index (s, ',');
+        p = strchr (s, ',');
         while (p)
         {
             *p = '\000';
@@ -228,14 +228,14 @@ xconfigPrintFileSection (FILE * cf, XConfigFilesPtr ptr)
             *p = ',';
             s = p;
             s++;
-            p = index (s, ',');
+            p = strchr (s, ',');
         }
         fprintf (cf, "    ModulePath      \"%s\"\n", s);
     }
     if (ptr->inputdevs)
     {
         s = ptr->inputdevs;
-        p = index (s, ',');
+        p = strchr (s, ',');
         while (p)
         {
             *p = '\000';
@@ -243,14 +243,14 @@ xconfigPrintFileSection (FILE * cf, XConfigFilesPtr ptr)
             *p = ',';
             s = p;
             s++;
-            p = index (s, ',');
+            p = strchr (s, ',');
         }
         fprintf (cf, "    InputDevices      \"%s\"\n", s);
     }
     if (ptr->fontpath)
     {
         s = ptr->fontpath;
-        p = index (s, ',');
+        p = strchr (s, ',');
         while (p)
         {
             *p = '\000';
@@ -258,7 +258,7 @@ xconfigPrintFileSection (FILE * cf, XConfigFilesPtr ptr)
             *p = ',';
             s = p;
             s++;
-            p = index (s, ',');
+            p = strchr (s, ',');
         }
         fprintf (cf, "    FontPath        \"%s\"\n", s);
     }
