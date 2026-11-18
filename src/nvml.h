@@ -7381,6 +7381,7 @@ nvmlReturn_t DECLDIR nvmlDeviceSetAdaptiveTgpMode_v1(nvmlDevice_t device, nvmlEn
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a info is NULL
  *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support Adaptive TGP Mode
+ *         - \ref NVML_ERROR_NOT_READY         if the Adaptive TGP Mode status is not available yet
  *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  *
