@@ -327,8 +327,27 @@ GdkPixbuf *ctk_widget_render_icon(GtkWidget *widget, const gchar *stock_id,
     }
 
 #ifdef CTK_GTK3
-    /* added in 3.0 and deprecated in 3.10 */
-    return gtk_widget_render_icon_pixbuf(widget, stock_id, size);
+    {
+        /*
+         * Under GTK3 the CTK_STOCK_* ids are icon theme names (e.g.
+         * "dialog-question"), which gtk_widget_render_icon_pixbuf() does not
+         * understand: it only resolves legacy stock ids and returns NULL
+         * otherwise.  Look the name up in the icon theme first.
+         */
+        GtkIconTheme *theme =
+            gtk_icon_theme_get_for_screen(gtk_widget_get_screen(widget));
+        gint w = 16, h = 16;
+        GdkPixbuf *pixbuf;
+
+        gtk_icon_size_lookup(size, &w, &h);
+        pixbuf = gtk_icon_theme_load_icon(theme, stock_id, MAX(w, h),
+                                          GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
+        if (pixbuf) {
+            return pixbuf;
+        }
+        /* added in 3.0 and deprecated in 3.10 */
+        return gtk_widget_render_icon_pixbuf(widget, stock_id, size);
+    }
 #else
     /* deprecated in 3.0 */
     return gtk_widget_render_icon(widget, stock_id, size, detail);
@@ -909,7 +928,13 @@ GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end)
     GdkPixbuf *pixbuf = NULL;
     size_t size = end - start;
 
+    /* e.g. BANNER_ARTWORK_BLANK has no image data */
+    if (!start || !end || end <= start) {
+        return NULL;
+    }
+
 #ifdef CTK_GTK3
+  {
     GInputStream *stream =
         g_memory_input_stream_new_from_data(start, size, NULL);
 
@@ -918,6 +943,7 @@ GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end)
 
         g_object_unref(stream);
     }
+  }
 #else
     GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
 

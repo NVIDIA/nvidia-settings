@@ -1257,7 +1257,9 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
-    g_object_unref(pixbuf);
+    if (pixbuf) {
+        g_object_unref(pixbuf);
+    }
     
     alignment = gtk_alignment_new(0.0, 0.0, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment), image);
