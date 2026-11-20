@@ -17,13 +17,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <pwd.h>
 #include <sys/types.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include "option-table.h"
 #include "query-assign.h"
@@ -199,6 +202,70 @@ void print_help(void)
     nvgetopt_print_help(__options, 0, print_help_helper);
 }
 
+/*
+ * locate_default_rc_file() - find a suitable location for the default
+ * configuration file. This will be one of:
+ *  - $XDG_CONFIG_HOME/nvidia/settings-rc,
+ *  - $HOME/.config/nvidia/settings-rc or
+ *  - $HOME/.nvidia-settings-rc
+ * The last of which is chosen only if the file already exists, for
+ * backwards compatibility.
+ *
+ * The parent directory, `nvidia` for the first two options will be
+ * created if it doesn't already exist.
+ *
+ * The string returned is malloc'ed, but must not be freed as it is
+ * re-used if this is called multiple times.
+ */
+const char *locate_default_rc_file(void)
+{
+    static char *default_rc_file = NULL;
+    const char *home;
+    const char *xdg_config_home;
+
+    if (default_rc_file) {
+        return default_rc_file;
+    }
+
+    home = get_user_home();
+    xdg_config_home = getenv("XDG_CONFIG_HOME");
+
+    /* Prefer the legacy dot-file in $HOME if it exists. */
+
+    if (home) {
+        nv_append_sprintf(&default_rc_file, "%s/.nvidia-settings-rc", home);
+
+        if (access(default_rc_file, F_OK) == 0) {
+            return default_rc_file;
+        }
+
+        nvfree(default_rc_file);
+        default_rc_file = NULL;
+    }
+
+    if (xdg_config_home) {
+        nv_append_sprintf(&default_rc_file, "%s/nvidia", xdg_config_home);
+    } else if (home) {
+        nv_append_sprintf(&default_rc_file, "%s/.config/nvidia", home);
+    } else {
+        /* Store in the current directory as the last resort if we cannot find a home. */
+
+        default_rc_file = ".nvidia-settings-rc";
+        return default_rc_file;
+    }
+
+    if (access(default_rc_file, F_OK) != 0) {
+        if (mkdir(default_rc_file, 0755) < 0) {
+            fprintf(stderr,
+                "Failed to create the default configuration directory '%s': %s.\n",
+                default_rc_file, strerror(errno));
+        }
+    }
+
+    nv_append_sprintf(&default_rc_file, "/settings-rc");
+
+    return default_rc_file;
+}
 
 /*
  * parse_command_line() - malloc an Options structure, initialize it
@@ -218,7 +285,7 @@ Options *parse_command_line(int argc, char *argv[],
     int boolval;
 
     op = nvalloc(sizeof(Options));
-    op->config = DEFAULT_RC_FILE;
+    op->config = locate_default_rc_file();
     op->write_config = NV_TRUE;
 
     /*
