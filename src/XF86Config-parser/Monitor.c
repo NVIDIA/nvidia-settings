@@ -379,7 +379,7 @@ xconfigParseVerboseMode (void)
             Error (UNEXPECTED_EOF_MSG, NULL);
             break;
         default:
-            Error ("Unexepcted token in verbose \"Mode\" entry\n", NULL);
+            Error ("Unexpected token in verbose \"Mode\" entry\n", NULL);
         }
     }
     if (!had_dotclock)
